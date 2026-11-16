@@ -295,19 +295,27 @@ private:
  void paintDetails(juce::Graphics& g,const Areas& a){
   const auto r=getSelected();
   const int x=a.detailX+14,y=62,w=a.detailW-28;
+  const bool compact=getHeight()<280;
   g.setColour(brass);g.setFont(font(11,true));
   g.drawText(english?"MASTERING PROFILE":"PROFIL DE MASTERING",x,y,w,17,juce::Justification::centredLeft);
   if(!r.valid){
-   g.setColour(ivory.withAlpha(.8f));g.setFont(font(13));
+   g.setColour(ivory.withAlpha(.8f));g.setFont(font(compact?11.f:13.f));
    g.drawFittedText(english?"Choose a preset to preview its settings."
                 :"Sélectionnez un preset pour découvrir ses réglages.",
-                x,y+29,w,62,juce::Justification::topLeft,3);
+                x,y+29,w,compact?42:62,juce::Justification::topLeft,3);
    return;
   }
   juce::String title,sub;
   if(r.user){
    title=proc.userPresetName(r.index);
    sub=english?"User preset · saved in DAW project":"Preset utilisateur · enregistré dans le projet DAW";
+   if(compact){
+    g.setColour(ivory);g.setFont(font(14,true));
+    g.drawFittedText(title,x,y+21,w,23,juce::Justification::centredLeft,1);
+    g.setColour(brass);g.setFont(font(10));
+    g.drawFittedText(sub,x,y+45,w,40,juce::Justification::topLeft,2);
+    return;
+   }
    g.setColour(ivory);g.setFont(font(17,true));
    g.drawFittedText(title,x,y+22,w,26,juce::Justification::centredLeft,1);
    g.setColour(brass);g.setFont(font(11));g.drawFittedText(sub,x,y+51,w,37,juce::Justification::topLeft,2);
@@ -320,6 +328,17 @@ private:
   title=juce::String(p.name);
   sub=juce::String(boom::categories[static_cast<size_t>(p.category)])
       +"  |  "+juce::String(boom::styles()[static_cast<size_t>(p.style)].name);
+  if(compact){
+   g.setColour(ivory);g.setFont(font(14,true));
+   g.drawFittedText(title,x,y+21,w,23,juce::Justification::centredLeft,1);
+   g.setColour(brass);g.setFont(font(10));
+   g.drawFittedText(sub,x,y+45,w,20,juce::Justification::centredLeft,1);
+   g.setColour(ivory);g.setFont(font(10));
+   g.drawFittedText("PUSH  "+juce::String(p.params.push,0)+" %    "+
+      (p.params.color==0?"CLEAN":p.params.color==1?"TUBE":"TAPE"),
+      x,y+67,w,19,juce::Justification::centredLeft,1);
+   return;
+  }
   g.setColour(ivory);g.setFont(font(17,true));
   g.drawFittedText(title,x,y+22,w,27,juce::Justification::centredLeft,1);
   g.setColour(brass);g.setFont(font(10));
@@ -334,7 +353,7 @@ private:
    (english?"CEILING  ":"PLAFOND  ")+juce::String(p.params.ceilingDb,1)+" dBFS"
   };
   for(int i=0;i<3;++i){
-   const int yy=y+85+i*22;
+   const int yy=y+80+i*20;
    g.setColour(ivory.withAlpha(i==2?.9f:1.f));
    g.setFont(font(11,i==2));
    g.drawFittedText(details[i],x,yy,w,20,juce::Justification::centredLeft,1);
