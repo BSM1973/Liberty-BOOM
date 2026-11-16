@@ -1,5 +1,10 @@
 name: BOOM - native plugins and DSP tests
 
+# Keep only the latest CI attempt per branch while diagnosing runner queues.
+concurrency:
+  group: boom-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 on:
   workflow_dispatch:
   push:
