@@ -437,7 +437,8 @@ void AnalogVu::paint(juce::Graphics& g){
  g.setColour(ivory);g.fillRoundedRectangle(face,4);
  juce::ColourGradient shade(juce::Colours::white.withAlpha(.15f),face.getTopLeft(),juce::Colour::fromRGB(139,112,79).withAlpha(.29f),face.getBottomRight(),false);
  g.setGradientFill(shade);g.fillRoundedRectangle(face,4);
- const auto center=juce::Point<float>(face.getCentreX(),face.getBottom()-10),rad=face.getWidth()*.42f;
+ const auto center=juce::Point<float>(face.getCentreX(),face.getBottom()-10);
+ const float rad=face.getWidth()*.42f;
  for(int i=0;i<=10;++i){const float v=-20.f+i*2.3f;
   const float a=juce::jmap(v,-20.f,3.f,-1.11f,1.11f);
   const auto origin=center+juce::Point<float>(std::sin(a),-std::cos(a))*rad*.70f;
