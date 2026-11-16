@@ -23,10 +23,18 @@ bool hit(juce::Point<float> p,float x,float y,float w,float h){
 
 BoomAudioProcessorEditor::BoomAudioProcessorEditor(BoomAudioProcessor& p)
  :juce::AudioProcessorEditor(&p),proc(p){
- chainSkin=juce::ImageFileFormat::loadFrom(BinaryData::boom_console_reference_jpg,
-                                         static_cast<size_t>(BinaryData::boom_console_reference_jpgSize));
- browserSkin=juce::ImageFileFormat::loadFrom(BinaryData::boom_browser_reference_jpg,
-                                           static_cast<size_t>(BinaryData::boom_browser_reference_jpgSize));
+ // Map resources through JUCE's original filenames; no assumptions about sanitized C identifiers.
+ for(int index=0;index<BinaryData::namedResourceListSize;++index){
+  const auto* key=BinaryData::namedResourceList[index];
+  int byteCount=0;
+  const auto* bytes=BinaryData::getNamedResource(key,byteCount);
+  if(bytes==nullptr||byteCount<=0)continue;
+  const juce::String original(BinaryData::getNamedResourceOriginalFilename(key));
+  if(original.containsIgnoreCase("console-reference"))
+   chainSkin=juce::ImageFileFormat::loadFrom(bytes,static_cast<size_t>(byteCount));
+  if(original.containsIgnoreCase("browser-reference"))
+   browserSkin=juce::ImageFileFormat::loadFrom(bytes,static_cast<size_t>(byteCount));
+ }
  english=raw("language")>0.5f;
  addAndMakeVisible(search);
  search.setTextToShowWhenEmpty(english?"Search the 100 factory presets...":"Rechercher parmi les 100 presets...",muted);
