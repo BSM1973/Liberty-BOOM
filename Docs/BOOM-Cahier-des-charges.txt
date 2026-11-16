@@ -1,0 +1,867 @@
+# BOOM
+## PROFESSIONAL ANALOG MASTERING CONSOLE
+### Developed by Liberty Music Software
+
+**Tagline: THE POWER BEHIND YOUR MASTER.**
+
+---
+
+## 1. PROJECT OVERVIEW
+
+Develop a premium, professional-grade stereo audio mastering plugin named BOOM, created by Liberty Music Software.
+
+BOOM must deliver the experience of a high-end analog mastering studio within a modern digital audio workstation.
+
+The product is inspired by the musical workflow, elegant simplicity and physical character of legendary analog mastering consoles.
+
+The supplied reference image establishes the desired interface layout, hardware realism, large rotary controls, studio environment and overall design quality.
+
+The objective is to create a visually stunning, sonically outstanding and technically reliable mastering solution suitable for music producers, mixing engineers, mastering professionals and independent musicians.
+
+BOOM must combine:
+
+- Authentic analog-inspired mastering sound.
+- High-quality digital signal processing.
+- Simple and immediate musical controls.
+- A complete internal mastering chain.
+- Forty professionally designed mastering Styles.
+- One hundred functional factory presets.
+- Photorealistic vintage hardware graphics.
+- Professional loudness and dynamics metering.
+- Modern production and streaming requirements.
+- Advanced mastering controls accessible through a secondary interface.
+
+The main workflow must remain extremely intuitive.
+
+A user should be able to select a Style, choose a Preset, adjust Input Drive, modify five mastering EQ bands and increase PUSH to obtain a polished master.
+
+The interface must never become unnecessarily complicated.
+
+All processing parameters must control genuine audio algorithms.
+
+Decorative controls without functional DSP are strictly forbidden.
+
+BOOM must be an original Liberty Music Software product, with original graphics, original presets and independently developed audio processing.
+
+---
+
+## 2. PREMIUM PHOTOREALISTIC USER INTERFACE
+
+The graphical interface is one of the highest priorities.
+
+BOOM must look and feel like an authentic professional analog mastering console.
+
+Avoid generic digital plugin interfaces.
+
+Avoid flat design, cartoonish controls, oversized typography, bright neon colors or futuristic visual clutter.
+
+### 2.1 Visual identity
+
+Use an elegant, luxurious vintage mastering studio aesthetic.
+
+Primary materials:
+
+- Dark walnut wood.
+- Aged bronze.
+- Brushed champagne metal.
+- Warm copper.
+- Charcoal-black equipment panels.
+- Ivory analog meter backgrounds.
+- Subtle amber illumination.
+
+Every control must have realistic material depth, shadows, reflections and accurate mechanical proportions.
+
+### 2.2 Main interface layout
+
+Use a wide landscape interface.
+
+Recommended reference resolution: 1440 × 900 pixels, with responsive scaling and HiDPI support.
+
+Divide the interface into two main areas.
+
+### UPPER AREA — MASTERING STUDIO
+
+Occupies approximately 45% of the interface.
+
+Display an original, highly realistic mastering studio environment.
+
+Include:
+
+- Two large high-end studio monitors.
+- Analog mastering equipment.
+- A detailed mastering desk.
+- Vintage outboard processors.
+- Warm indirect studio lighting.
+- Elegant acoustic wall treatments.
+- Wooden studio furniture.
+- Natural shadows and reflections.
+
+Place the BOOM logo at the top center.
+
+Display:
+
+BOOM
+
+PROFESSIONAL MASTERING CONSOLE
+
+LIBERTY MUSIC SOFTWARE
+
+At the top left, display the STYLE selector.
+
+At the top right, display the PRESET selector.
+
+Include discreet controls for:
+
+- Settings.
+- Advanced Chain.
+- Metering.
+- Language.
+- Help.
+
+### LOWER AREA — ANALOG CONTROL CONSOLE
+
+Occupies approximately 55% of the interface.
+
+The layout must contain:
+
+LEFT:
+
+One very large INPUT DRIVE rotary control.
+
+CENTER UPPER:
+
+Two large realistic analog VU meters.
+
+CENTER LOWER:
+
+Five rotary EQ controls.
+
+CENTER SWITCHES:
+
+Input/Process metering selection and Global Bypass.
+
+RIGHT:
+
+One very large PUSH rotary control.
+
+UPPER RIGHT:
+
+Stereo/Mono monitoring switch.
+
+The two large rotary controls must visually dominate the lower panel.
+
+All seven rotary controls must remain clearly separated.
+
+No overlapping controls, text, knobs or graphical elements.
+
+All control labels must remain readable at normal display sizes.
+
+---
+
+## 3. INPUT DRIVE — ANALOG INPUT STAGE
+
+Create a large vintage hardware-style INPUT DRIVE control.
+
+Range: -18 dB to +18 dB.
+
+Default: 0 dB.
+
+The control must regulate the level entering the mastering processing chain.
+
+Increasing INPUT DRIVE must influence the input level of the dynamics processors and analog saturation stages.
+
+It must not simply operate as a final volume control.
+
+Implement:
+
+- High-precision input gain.
+- Stereo-linked operation.
+- Optional independent left/right trim.
+- Smooth gain transitions.
+- Parameter smoothing.
+- Click-free automation.
+- Accurate numerical gain display.
+- Optional automatic gain compensation.
+
+Moderate levels should remain clean and transparent.
+
+Higher settings should progressively introduce musically useful analog-style character through the internal processing chain.
+
+---
+
+## 4. FIVE-BAND MUSICAL MASTERING EQUALIZER
+
+Implement a high-quality five-band mastering EQ using genuine digital filters.
+
+The main interface must expose exactly five EQ controls.
+
+### BAND 1 — 60 Hz
+
+Type: Low Shelf.
+
+Gain: -8 dB to +8 dB.
+
+Controls:
+
+- Sub-bass weight.
+- Low-frequency foundation.
+- Kick drum depth.
+- Overall bass warmth.
+
+### BAND 2 — 120 Hz
+
+Type: Broad Bell.
+
+Gain: -10 dB to +10 dB.
+
+Controls:
+
+- Bass punch.
+- Warmth.
+- Low-mid fullness.
+- Excessive boominess.
+
+### BAND 3 — 3 kHz
+
+Type: Broad Bell.
+
+Gain: -10 dB to +10 dB.
+
+Controls:
+
+- Vocal presence.
+- Instrument articulation.
+- Guitar definition.
+- Midrange attack.
+
+### BAND 4 — 6 kHz
+
+Type: Broad Bell.
+
+Gain: -10 dB to +10 dB.
+
+Controls:
+
+- Brightness.
+- Definition.
+- Vocal clarity.
+- Upper-mid detail.
+
+### BAND 5 — 10 kHz
+
+Type: High Shelf.
+
+Gain: -8 dB to +8 dB.
+
+Controls:
+
+- Air.
+- Brilliance.
+- High-frequency openness.
+- Mastering polish.
+
+### EQ technical requirements
+
+Use stable, high-quality biquad filters or an equivalent professional EQ architecture.
+
+All filters must adapt correctly to the current sample rate.
+
+Frequency response must be smooth and musical.
+
+Avoid zipper noise when parameters change.
+
+Provide:
+
+- Fine adjustment.
+- Double-click reset.
+- Numerical parameter display.
+- Automation support.
+- Smooth coefficient updates.
+
+All five EQ controls must remain immediately accessible on the main console.
+
+---
+
+## 5. PUSH — INTELLIGENT MASTERING INTENSITY
+
+PUSH is the signature feature of BOOM.
+
+Create a very large hardware-style rotary control labeled PUSH.
+
+Range: 0–100%.
+
+Default: 0%.
+
+PUSH must be a genuine multi-parameter mastering macro.
+
+It must not behave as a simple volume control.
+
+As PUSH increases, the audio should gradually become more energetic, dense, powerful and polished.
+
+Internally, PUSH must coordinate:
+
+1. Harmonic saturation intensity.
+2. Compressor threshold and behavior.
+3. Perceived loudness.
+4. Transient preservation.
+5. Broad tonal enhancement.
+6. Low-frequency control.
+7. Limiter input drive.
+8. Output gain compensation.
+
+### PUSH intensity zones
+
+0–20% — SUBTLE
+
+Very gentle mastering enhancement with minimal coloration.
+
+20–45% — MUSICAL
+
+Additional warmth, punch and density while preserving dynamics.
+
+45–75% — POWERFUL
+
+Stronger mastering character, increased perceived loudness and controlled compression.
+
+75–100% — MAXIMUM IMPACT
+
+Assertive mastering intensity with careful peak management and controlled harmonic saturation.
+
+PUSH must remain predictable across its entire range.
+
+Avoid excessive pumping, harsh distortion or uncontrolled clipping.
+
+All parameter transitions must be smooth and click-free.
+
+At 0%, PUSH must apply no additional macro-driven processing, while the individual mastering modules remain available.
+
+---
+
+## 6. COMPLETE PROFESSIONAL MASTERING DSP ENGINE
+
+Implement a fully functional stereo mastering chain.
+
+Default signal path:
+
+INPUT TRIM → ANALOG COLOR → MASTER EQ → DE-ESSER → GLUE COMPRESSOR → PEAK LIMITER → OUTPUT TRIM
+
+Each processor must be implemented using genuine DSP.
+
+Processing must operate on the audio signal rather than simply changing control values.
+
+### 6.1 ANALOG COLOR
+
+Create three original analog-inspired character modes.
+
+CLEAN:
+
+Transparent processing with minimal harmonic coloration.
+
+TUBE:
+
+Warm saturation emphasizing smooth harmonic richness.
+
+TAPE:
+
+Soft peak rounding, gentle saturation and subtle frequency-dependent coloration.
+
+Include:
+
+- Drive.
+- Mix.
+- Output Compensation.
+- Bypass.
+
+Use stable nonlinear waveshaping and suitable anti-aliasing techniques.
+
+### 6.2 MASTER EQ
+
+Use the five-band EQ described previously.
+
+The advanced view may expose additional technical parameters while the five main controls remain directly available.
+
+### 6.3 MASTERING DE-ESSER
+
+Implement a professional high-frequency dynamics processor.
+
+Parameters:
+
+Frequency: 3–12 kHz.
+
+Threshold: -40 to 0 dB.
+
+Amount: 0–100%.
+
+Attack: Adjustable fast response.
+
+Release: Adjustable.
+
+Bypass: On/Off.
+
+The de-esser must control excessive high-frequency energy without unnecessarily dulling the entire master.
+
+### 6.4 GLUE COMPRESSOR
+
+Create a mastering-grade stereo-linked compressor.
+
+Parameters:
+
+Threshold: -40 to 0 dB.
+
+Ratio: 1:1 to 4:1.
+
+Attack: 1–100 ms.
+
+Release: 50–1000 ms.
+
+Makeup Gain: -12 to +12 dB.
+
+Parallel Mix: 0–100%.
+
+Stereo Link: On/Off.
+
+Bypass: On/Off.
+
+Implement a stable dynamics detector and smooth gain-reduction envelope.
+
+The compressor must be suitable for subtle mastering rather than only aggressive bus compression.
+
+### 6.5 TRUE-PEAK LIMITER
+
+Implement a professional mastering limiter.
+
+Features:
+
+- Lookahead limiting.
+- Transparent peak control.
+- Stereo-linked gain reduction.
+- Adjustable release.
+- Output ceiling.
+- Gain reduction metering.
+- Optional oversampling.
+- True-peak detection using an appropriate oversampled measurement path.
+
+Parameters:
+
+Threshold: -18 to 0 dB.
+
+Output Ceiling: -2.0 to 0 dBTP.
+
+Release: Auto or Manual.
+
+Limiter Mode:
+
+TRANSPARENT.
+
+PUNCH.
+
+LOUD.
+
+Every mode must change actual limiter behavior.
+
+The limiter must prevent unintended output clipping.
+
+True-peak compliance must be verified through measurements rather than assumed.
+
+### 6.6 MASTER OUTPUT
+
+Provide:
+
+- Output Gain: -18 to +6 dB.
+- Master Bypass.
+- Output Peak Indication.
+- Stereo Processing.
+- Mono Monitoring.
+- Automatic Level Compensation where enabled.
+
+Use safe gain staging throughout the audio chain.
+
+---
+
+## 7. AUTHENTIC ANALOG VU METERS
+
+Place two large premium analog VU meters in the center of the interface.
+
+The meters must reproduce the visual behavior of high-quality physical studio equipment.
+
+Visual requirements:
+
+- Warm ivory illuminated faceplates.
+- Black engraved measurement scales.
+- Red overload markings.
+- Realistic moving needles.
+- Vintage dark metal frames.
+- Subtle reflections.
+- Smooth needle damping.
+
+The left meter represents the left channel.
+
+The right meter represents the right channel.
+
+Provide an INPUT / PROCESS switch.
+
+INPUT displays the signal before mastering processing.
+
+PROCESS displays the processed signal.
+
+Implement signal-derived VU ballistics with approximately 300 ms integration behavior.
+
+Default calibration:
+
+0 VU = -18 dBFS nominal reference.
+
+Allow alternative calibration settings where appropriate.
+
+Needles must respond exclusively to measured audio levels.
+
+No fake or random needle animation.
+
+---
+
+## 8. STEREO AND MONO MONITORING
+
+Create a realistic physical switch labeled:
+
+STEREO / MONO.
+
+Default: STEREO.
+
+MONO must sum the signal for monitoring compatibility checks.
+
+The mono switch must not unintentionally alter the final stereo rendering.
+
+Implement:
+
+- Stereo-linked mastering.
+- Optional independent input trim.
+- Correlation monitoring.
+- Stable channel summing.
+- Correct handling of stereo phase relationships.
+
+---
+
+## 9. FORTY PROFESSIONAL MASTERING STYLES
+
+Create 40 musical mastering Styles.
+
+Each Style must load a complete and meaningful mastering configuration.
+
+The Styles must control actual audio processor settings.
+
+Do not use generic identical presets with different names.
+
+### STYLE LIBRARY
+
+1. Pop Rock
+2. Modern Pop
+3. Indie Pop
+4. Classic Rock
+5. Hard Rock
+6. Heavy Metal
+7. Modern Metal
+8. Punk Rock
+9. Indie Rock
+10. Alternative Rock
+11. Hip-Hop
+12. Trap
+13. Contemporary R&B
+14. Neo Soul
+15. Funk
+16. Disco
+17. EDM
+18. House
+19. Deep House
+20. Techno
+21. Trance
+22. Drum & Bass
+23. Dubstep
+24. Synthwave
+25. Ambient
+26. Cinematic
+27. Acoustic
+28. Folk
+29. Country
+30. Blues
+31. Jazz
+32. Vocal Jazz
+33. Classical
+34. Orchestral
+35. Latin
+36. Reggae
+37. Afrobeats
+38. Lo-Fi
+39. Podcast / Voice
+40. Streaming Balanced
+
+Every Style must contain its own EQ configuration, saturation character, compression settings, limiting behavior and recommended PUSH characteristics.
+
+The purpose is to provide immediate, musical mastering starting points.
+
+---
+
+## 10. ONE HUNDRED FACTORY MASTERING PRESETS
+
+Create exactly 100 professional factory presets.
+
+Organize them into ten categories containing ten presets each.
+
+### PRESET CATEGORIES
+
+1. Pop & Commercial
+2. Rock & Alternative
+3. Metal & Heavy
+4. Hip-Hop & Trap
+5. Electronic & Dance
+6. Jazz & Acoustic
+7. Cinematic & Ambient
+8. Vintage Analog
+9. Streaming & Modern Distribution
+10. Utility & Mastering Tools
+
+Each preset must contain:
+
+- Unique preset name.
+- Associated mastering Style.
+- Input Drive setting.
+- Five EQ settings.
+- PUSH intensity.
+- Analog Color configuration.
+- De-esser configuration.
+- Compressor parameters.
+- Limiter configuration.
+- Output gain.
+- Relevant advanced settings.
+
+All 100 presets must be functional and immediately loadable.
+
+Every preset must produce a meaningful processing configuration.
+
+Include gentle, moderate and aggressive mastering options.
+
+Not all presets should aim for maximum loudness.
+
+---
+
+## 11. PROFESSIONAL PRESET BROWSER
+
+Create an elegant and fully functional preset browser.
+
+Visual style:
+
+Dark brushed metal with champagne and bronze highlights.
+
+Features:
+
+- Search presets by name.
+- Filter by musical Style.
+- Filter by category.
+- Previous/Next navigation.
+- Favorite presets.
+- Factory/User preset distinction.
+- Preset description.
+- Save User Preset.
+- Rename User Preset.
+- Delete User Preset.
+- Restore Factory Preset.
+- Import/Export user presets.
+
+Every preset change must update the actual audio engine and visible control positions.
+
+Save and restore the selected preset and all related parameters with the DAW project.
+
+Use smooth transitions to avoid clicks when recalling processing configurations.
+
+---
+
+## 12. ADVANCED MASTERING CHAIN
+
+Create a discreet button labeled CHAIN.
+
+Clicking CHAIN opens a secondary mastering interface.
+
+Display six detailed hardware-style modules:
+
+1. ANALOG COLOR
+2. MASTER EQ
+3. DE-ESSER
+4. GLUE COMPRESSOR
+5. TRUE-PEAK LIMITER
+6. MASTER OUTPUT
+
+Each module must feature:
+
+- Realistic hardware panel.
+- Dedicated parameter controls.
+- Active/Bypass switch.
+- Numerical parameter readouts.
+- Suitable signal metering.
+- Reset function.
+
+The advanced panel must never permanently obscure the main console.
+
+The primary user experience must remain simple.
+
+---
+
+## 13. PROFESSIONAL MASTERING METERS
+
+Create an advanced METERS panel.
+
+Implement:
+
+- Input Peak.
+- Output Peak.
+- RMS.
+- Momentary LUFS.
+- Short-Term LUFS.
+- Integrated LUFS.
+- Loudness Range (LRA).
+- True-Peak Level.
+- Compressor Gain Reduction.
+- Limiter Gain Reduction.
+- Stereo Correlation.
+- Clipping Indicators.
+
+Use appropriate loudness measurement standards, including ITU-R BS.1770 and EBU R128 where applicable.
+
+Provide a reset control for integrated loudness measurements.
+
+Use real signal analysis.
+
+All measurements must be technically meaningful.
+
+---
+
+## 14. A/B MASTERING COMPARISON
+
+Implement a complete A/B comparison system.
+
+Features:
+
+- Store State A.
+- Store State B.
+- Switch A/B.
+- Copy A to B.
+- Copy B to A.
+- Recall processing parameters.
+- Smooth switching.
+- Optional level-matched comparison.
+
+The purpose is to allow engineers to evaluate tonal and dynamic improvements independently of perceived volume differences.
+
+A/B must recall complete mastering states.
+
+---
+
+## 15. MULTILINGUAL INTERFACE
+
+Provide two languages:
+
+FRENCH — default.
+
+ENGLISH.
+
+Translate interface labels, menus, contextual help and user-facing messages.
+
+Retain internationally recognized technical terminology where appropriate.
+
+Store the selected language in the user preferences.
+
+The interface must remain perfectly aligned in either language.
+
+---
+
+## 16. REALISTIC HARDWARE INTERACTION
+
+All controls must feel authentic and precise.
+
+Implement:
+
+- Smooth rotary knob movement.
+- Fine parameter adjustment.
+- Double-click reset.
+- Numeric parameter display.
+- Realistic switch animations.
+- Illuminated hardware indicators.
+- Smooth VU needle animations.
+- Responsive tooltips.
+- Full DAW parameter automation.
+- Keyboard accessibility where practical.
+
+All interactive components must have functional behavior.
+
+Avoid decorative switches that do not affect audio or the interface.
+
+---
+
+## 17. PROFESSIONAL AUDIO ENGINE REQUIREMENTS
+
+Develop BOOM as a native, real-time audio plugin using a robust audio processing architecture.
+
+Technical requirements:
+
+- Stereo input and output.
+- 32-bit floating-point audio processing support.
+- Support for 44.1, 48, 88.2, 96, 176.4 and 192 kHz where available.
+- Stable operation across common DAW buffer sizes.
+- Sample-rate-independent filter behavior.
+- Real-time-safe audio callbacks.
+- No heap allocations in the audio callback.
+- No blocking file I/O in the audio thread.
+- No UI operations in the audio thread.
+- Smooth parameter interpolation.
+- Correct plugin-state serialization.
+- Safe preset switching.
+- Denormal protection.
+- Reliable initialization and shutdown.
+- Accurate host transport and automation integration where needed.
+
+Prioritize stability, low latency and controlled CPU consumption.
+
+Document any additional latency introduced by lookahead processing or oversampling.
+
+Report plugin latency correctly to the host.
+
+---
+
+## 18. PLUGIN FORMATS
+
+Build professional native audio plugin versions for:
+
+### macOS
+
+- Audio Units (AU).
+- VST3.
+- Apple Silicon ARM64.
+- Intel x86_64.
+
+### Windows
+
+- VST3.
+- Windows x64.
+
+Target compatibility with professional DAWs including:
+
+Ableton Live, Logic Pro, Cubase, Nuendo, Studio One, REAPER, Bitwig Studio, Pro Tools through an appropriate supported format, and other compatible hosts.
+
+AU and VST3 are mandatory deliverables.
+
+Any additional plugin format must be implemented and validated separately.
+
+---
+
+## 19. QUALITY ASSURANCE AND VALIDATION
+
+Before release, verify the entire audio processing chain.
+
+### AUDIO TESTS
+
+- Verify Input Drive gain behavior.
+- Verify all five EQ frequency responses.
+- Verify analog saturation modes.
+- Verify compressor gain reduction.
+- Verify de-esser frequency-selective processing.
+- Verify limiter operation.
+- Measure true-peak behavior.
+- Verify PUSH macro interactions.
+- Check clipping

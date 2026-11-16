@@ -1,0 +1,6 @@
+build/
+build-dsp/
+build-sanitize/
+.DS_Store
+*.user
+*.xcuserdata

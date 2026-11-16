@@ -1,0 +1,65 @@
+name: BOOM - native plugins and DSP tests
+
+on:
+  workflow_dispatch:
+  push:
+  pull_request:
+
+jobs:
+  dsp-validation:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure dependency-free DSP tests
+        run: cmake -S . -B build-dsp -DBOOM_DSP_ONLY=ON -DCMAKE_BUILD_TYPE=Release
+      - name: Build DSP tests
+        run: cmake --build build-dsp --parallel 3
+      - name: Run DSP tests
+        run: ctest --test-dir build-dsp --output-on-failure
+
+  sanitizer-dsp:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure DSP sanitizer validation
+        run: >-
+          cmake -S . -B build-sanitize -DBOOM_DSP_ONLY=ON -DCMAKE_BUILD_TYPE=Debug
+          '-DCMAKE_CXX_FLAGS=-fsanitize=address,undefined -fno-omit-frame-pointer'
+          '-DCMAKE_EXE_LINKER_FLAGS=-fsanitize=address,undefined'
+      - name: Build sanitized tests
+        run: cmake --build build-sanitize --parallel 3
+      - name: Run sanitized tests
+        env:
+          ASAN_OPTIONS: detect_leaks=1
+        run: ctest --test-dir build-sanitize --output-on-failure
+
+  native-plugins:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-15
+            label: macOS-ARM64
+          - runner: macos-15-intel
+            label: macOS-Intel
+          - runner: windows-2022
+            label: Windows-x64
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure JUCE 8.0.10 plugin
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON
+      - name: Build AU / VST3 and standalone
+        run: cmake --build build --config Release --parallel 3
+      - name: Test DSP
+        run: ctest --test-dir build -C Release --output-on-failure
+      - name: Upload unsigned development plugins
+        uses: actions/upload-artifact@v4
+        with:
+          name: BOOM-${{ matrix.label }}-unsigned
+          path: |
+            build/BOOM_artefacts/Release/AU/**
+            build/BOOM_artefacts/Release/VST3/**
+            build/BOOM_artefacts/Release/Standalone/**
+          if-no-files-found: warn
+          retention-days: 14
