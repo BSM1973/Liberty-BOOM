@@ -197,13 +197,17 @@ public:
   search.setBounds(a.mainX,55,a.mainW-189,30);
   styleFilter.setBounds(a.mainX+a.mainW-183,55,183,30);
   list.setBounds(a.mainX+2,114,a.mainW-4,getHeight()-175);
-  userName.setBounds(a.detailX+12,getHeight()-102,a.detailW-24,27);
-  const int y=getHeight()-53;
-  previous.setBounds(a.mainX,y,78,29);
-  next.setBounds(a.mainX+84,y,78,29);
-  favourite.setBounds(a.mainX+169,y,119,29);
-  saveUser.setBounds(a.mainX+295,y,155,29);
-  userActions.setBounds(a.mainX+457,y,150,29);
+  userName.setBounds(a.detailX+12,getHeight()-84,a.detailW-24,26);
+  const int y=getHeight()-53, spacing=6,usable=a.mainW-4*spacing;
+  const int prevW=juce::roundToInt(usable*.14f);
+  const int nextW=juce::roundToInt(usable*.14f);
+  const int favW=juce::roundToInt(usable*.19f);
+  const int saveW=juce::roundToInt(usable*.26f);
+  previous.setBounds(a.mainX,y,prevW,29);
+  next.setBounds(previous.getRight()+spacing,y,nextW,29);
+  favourite.setBounds(next.getRight()+spacing,y,favW,29);
+  saveUser.setBounds(favourite.getRight()+spacing,y,saveW,29);
+  userActions.setBounds(saveUser.getRight()+spacing,y,a.mainX+a.mainW-saveUser.getRight()-spacing,29);
   load.setBounds(a.detailX+12,y,a.detailW-24,30);
   status.setBounds(18,getHeight()-22,getWidth()-36,19);
  }
@@ -322,27 +326,19 @@ private:
   g.drawFittedText(sub,x,y+51,w,22,juce::Justification::centredLeft,1);
   g.setColour(copper.withAlpha(.55f));g.drawLine(float(x),float(y+78),float(x+w),float(y+78),1.f);
   const auto colorName=p.params.color==0?"CLEAN":p.params.color==1?"TUBE":"TAPE";
-  const juce::String names[]={
-   english?"INPUT":"ENTRÉE",english?"PUSH":"PUSH",
-   english?"COLOR":"COULEUR",english?"GLUE":"GLUE",
-   english?"CEILING":"PLAFOND",english?"STYLE":"STYLE"
+  const juce::String details[]={
+   (english?"INPUT  ":"ENTRÉE  ")+juce::String(p.params.inputDb,1)+" dB"
+       +"    PUSH  "+juce::String(p.params.push,0)+" %",
+   (english?"COLOR  ":"COULEUR  ")+juce::String(colorName)
+       +"    GLUE  "+juce::String(p.params.compRatio,2)+":1",
+   (english?"CEILING  ":"PLAFOND  ")+juce::String(p.params.ceilingDb,1)+" dBFS"
   };
-  const juce::String values[]={
-   juce::String(p.params.inputDb,1)+" dB",juce::String(p.params.push,0)+" %",
-   juce::String(colorName),juce::String(p.params.compRatio,2)+" : 1",
-   juce::String(p.params.ceilingDb,1)+" dBFS",
-   juce::String(boom::styles()[static_cast<size_t>(p.style)].name)
-  };
-  for(int i=0;i<6;++i){
-   const int yy=y+84+i*17;
-   g.setColour(brass);g.setFont(font(10));g.drawText(names[i],x,yy,78,17,juce::Justification::centredLeft);
-   g.setColour(ivory);g.setFont(font(10,true));
-   g.drawFittedText(values[i],x+78,yy,w-78,17,juce::Justification::centredRight,1);
+  for(int i=0;i<3;++i){
+   const int yy=y+85+i*22;
+   g.setColour(ivory.withAlpha(i==2?.9f:1.f));
+   g.setFont(font(11,i==2));
+   g.drawFittedText(details[i],x,yy,w,20,juce::Justification::centredLeft,1);
   }
-  g.setColour(brass.withAlpha(.85f));g.setFont(font(10));
-  g.drawFittedText(english?"Full audio-chain recall · double-click to load."
-               :"Rappel de toute la chaîne DSP · double-clic pour charger.",
-               x,getHeight()-121,w,20,juce::Justification::centredLeft,1);
  }
  void move(int offset){
   if(shown.empty())return;
