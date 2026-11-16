@@ -4,10 +4,11 @@
 namespace {
 const juce::Colour brass=juce::Colour::fromRGB(198,161,101);
 const juce::Colour ivory=juce::Colour::fromRGB(239,222,179);
-const juce::Colour charcoal=juce::Colour::fromRGB(31,29,26);
-const juce::Colour walnut=juce::Colour::fromRGB(57,37,29);
-const juce::Colour amber=juce::Colour::fromRGB(244,163,69);
-const juce::Colour deep=juce::Colour::fromRGB(17,16,15);
+const juce::Colour charcoal=juce::Colour::fromRGB(30,17,19);
+const juce::Colour walnut=juce::Colour::fromRGB(62,19,24);
+const juce::Colour amber=juce::Colour::fromRGB(198,100,72);
+const juce::Colour deep=juce::Colour::fromRGB(17,9,12);
+const juce::Colour copper=juce::Colour::fromRGB(170,79,62);
 const juce::Font font(float size,bool bold=false){return juce::Font(juce::FontOptions(size,bold?juce::Font::bold:juce::Font::plain));}
 
 class OverlayBase:public juce::Component {
@@ -31,206 +32,401 @@ protected:
  std::function<void()> onClose;
 };
 
-class BrowserPanel final:public OverlayBase,private juce::ListBoxModel{
+class BrowserPanel final : public OverlayBase, private juce::ListBoxModel {
+private:
+ struct Row { bool user=false; int index=-1; bool valid=false; };
+ class CategoryModel final : public juce::ListBoxModel {
+ public:
+  explicit CategoryModel(BrowserPanel& p):owner(p){}
+  int getNumRows() override { return 13; }
+  void paintListBoxItem(int row,juce::Graphics& g,int w,int h,bool selected) override {
+   owner.paintCategoryItem(row,g,w,h,selected);
+  }
+  void selectedRowsChanged(int) override { owner.refresh(); }
+ private:
+  BrowserPanel& owner;
+ };
 public:
- explicit BrowserPanel(BoomAudioProcessor& processor,std::function<void()> close):
- OverlayBase("BOOM  |  PRESET BROWSER",std::move(close)),proc(processor){
+ explicit BrowserPanel(BoomAudioProcessor& p,std::function<void()> close)
+  :OverlayBase("PRESETS D'USINE & UTILISATEUR",std::move(close)),proc(p),categoryModel(*this) {
+  english=proc.state().getRawParameterValue("language")->load()>0.5f;
+  closeButton.setButtonText("×");
+  closeButton.setTooltip(english?"Close browser":"Fermer le navigateur");
+  addAndMakeVisible(categoriesList);
+  categoriesList.setModel(&categoryModel);
+  categoriesList.setRowHeight(28);
+  categoriesList.setColour(juce::ListBox::backgroundColourId,deep);
+  categoriesList.setOutlineThickness(0);
   addAndMakeVisible(search);
-  search.setTextToShowWhenEmpty("Rechercher un preset...",juce::Colours::grey);
+  search.setTextToShowWhenEmpty(english?"Search across 100 factory presets...":"Rechercher parmi les 100 presets...",brass.withAlpha(.65f));
+  search.setColour(juce::TextEditor::backgroundColourId,deep);
+  search.setColour(juce::TextEditor::textColourId,ivory);
+  search.setColour(juce::TextEditor::outlineColourId,copper);
   search.onTextChange=[this]{refresh();};
-  addAndMakeVisible(category);
-  category.addItem("Toutes les catégories",1);
-  for(int c=0;c<10;++c)category.addItem(juce::String(boom::categories[c]),c+2);
-  category.setSelectedId(1,juce::dontSendNotification);
-  category.onChange=[this]{refresh();};
   addAndMakeVisible(styleFilter);
-  styleFilter.addItem("Tous les Styles",1);
-  for(int i=0;i<40;++i)styleFilter.addItem(boom::styles()[i].name,i+2);
+  styleFilter.addItem(english?"All Styles":"Tous les Styles",1);
+  for(int i=0;i<40;++i)styleFilter.addItem(juce::String(boom::styles()[static_cast<size_t>(i)].name),i+2);
   styleFilter.setSelectedId(1,juce::dontSendNotification);
   styleFilter.onChange=[this]{refresh();};
-  addAndMakeVisible(sourceFilter);
-  sourceFilter.addItem("USINE + UTILISATEUR",1);
-  sourceFilter.addItem("USINE",2);
-  sourceFilter.addItem("UTILISATEUR",3);
-  sourceFilter.setSelectedId(1,juce::dontSendNotification);
-  sourceFilter.onChange=[this]{refresh();};
-  addAndMakeVisible(list);list.setModel(this);list.setRowHeight(32);
+  addAndMakeVisible(list);
+  list.setModel(this);
+  list.setRowHeight(31);
+  list.setOutlineThickness(0);
+  list.setColour(juce::ListBox::backgroundColourId,deep);
+  list.setColour(juce::ListBox::outlineColourId,copper);
   addAndMakeVisible(userName);
-  userName.setTextToShowWhenEmpty("Nom du preset utilisateur...",juce::Colours::grey);
-  auto addButton=[this](juce::TextButton& b,const juce::String& t, std::function<void()> callback){
-   addAndMakeVisible(b);b.setButtonText(t);b.onClick=std::move(callback);
+  userName.setTextToShowWhenEmpty(english?"Name for your preset...":"Nom de votre preset utilisateur...",brass.withAlpha(.65f));
+  userName.setColour(juce::TextEditor::backgroundColourId,deep);
+  userName.setColour(juce::TextEditor::textColourId,ivory);
+  userName.setColour(juce::TextEditor::outlineColourId,copper);
+  const auto addButton=[this](juce::TextButton& b,const juce::String& text,std::function<void()> fn){
+   addAndMakeVisible(b);b.setButtonText(text);b.onClick=std::move(fn);
   };
-  addButton(load,"CHARGER",[this]{loadSelected();});
-  addButton(previous,"PRÉCÉDENT",[this]{move(-1);});
-  addButton(next,"SUIVANT",[this]{move(1);});
-  addButton(favourite,"☆ FAVORI",[this]{const auto row=getSelected();
-   if(!row.valid||row.user)return;
-   proc.toggleFavorite(row.index);list.repaint();
-  });
-  addButton(saveUser,"SAUVER",[this]{
-   const int index=proc.saveUserPreset(userName.getText());
-   message.setText(index>=0?"Preset utilisateur sauvegardé dans le projet DAW.":
-       "Indiquez un nom valide (maximum 512 presets).",juce::dontSendNotification);
-   if(index>=0){
-    category.setSelectedId(1,juce::dontSendNotification);
-    styleFilter.setSelectedId(1,juce::dontSendNotification);
-    search.clear();
-    sourceFilter.setSelectedId(3,juce::dontSendNotification);refresh();selectRow(true,index);
-   }
-  });
-  addButton(renameUser,"RENOMMER",[this]{const auto r=getSelected();
-   if(!r.valid||!r.user)return;
-   const bool ok=proc.renameUserPreset(r.index,userName.getText());
-   message.setText(ok?"Preset renommé.":"Nom invalide.",juce::dontSendNotification);
-   refresh();if(ok)selectRow(true,r.index);
-  });
-  addButton(deleteUser,"SUPPRIMER",[this]{const auto r=getSelected();
-   if(!r.valid||!r.user)return;
-   if(!deleteArmed||deleteIndex!=r.index){
-    deleteArmed=true;deleteIndex=r.index;
-    message.setText("Cliquez une deuxième fois sur SUPPRIMER pour confirmer.",juce::dontSendNotification);
-    return;
-   }
-   const bool ok=proc.deleteUserPreset(r.index);
-   deleteArmed=false;deleteIndex=-1;
-   message.setText(ok?"Preset utilisateur supprimé.":"Suppression impossible.",juce::dontSendNotification);
+  addButton(previous,english?"◀ PREV":"◀ PRÉC.",[this]{move(-1);});
+  addButton(next,english?"NEXT ▶":"SUIV. ▶",[this]{move(1);});
+  addButton(favourite,english?"☆ FAVORITE":"☆ FAVORI",[this]{
+   auto r=getSelected();
+   if(!r.valid||r.user){setStatus(english?"Select a factory preset.":"Sélectionnez un preset d'usine.");return;}
+   proc.toggleFavorite(r.index);
    refresh();
+   selectRow(false,r.index);
   });
-  addButton(importUser,"IMPORTER .BOOM",[this]{openImport();});
-  addButton(exportUser,"EXPORTER .BOOM",[this]{openExport();});
-  addAndMakeVisible(message);message.setColour(juce::Label::textColourId,ivory);
-  message.setJustificationType(juce::Justification::centredLeft);
-  message.setFont(font(12));
-  message.setText("Les presets utilisateur sont intégrés à l'état du projet ; exportez-les pour les partager.",juce::dontSendNotification);
+  addButton(saveUser,english?"SAVE AS...":"ENREGISTRER...",[this]{save();});
+  addButton(userActions,english?"USER LIBRARY ▾":"UTILISATEUR ▾",[this]{openActions();});
+  addButton(load,english?"▶ LOAD PRESET":"▶ CHARGER LE PRESET",[this]{loadSelected();});
+  addAndMakeVisible(status);
+  status.setColour(juce::Label::textColourId,brass);
+  status.setFont(font(11));
+  status.setText(english?"Double-click a preset to load it. Factory sounds remain unchanged."
+                        :"Double-cliquez sur un preset pour le charger. Les 100 presets d'usine restent intacts.",
+                 juce::dontSendNotification);
+  categoriesList.selectRow(0);
   refresh();
  }
- ~BrowserPanel() override {list.setModel(nullptr);}
- int getNumRows() override{return static_cast<int>(shown.size());}
+ ~BrowserPanel()override {
+  list.setModel(nullptr);
+  categoriesList.setModel(nullptr);
+ }
+ int getNumRows() override { return static_cast<int>(shown.size()); }
  void selectedRowsChanged(int) override {
-  deleteArmed=false;deleteIndex=-1;
-  const auto row=getSelected();
-  if(row.valid&&row.user)userName.setText(proc.userPresetName(row.index),juce::dontSendNotification);
+  deleteArmed=false;
+  const auto r=getSelected();
+  if(r.valid && r.user)userName.setText(proc.userPresetName(r.index),juce::dontSendNotification);
+  repaint();
  }
- void paintListBoxItem(int row,juce::Graphics& g,int width,int height,bool selected)override{
+ void paintListBoxItem(int row,juce::Graphics& g,int w,int h,bool selected)override {
   if(row<0||row>=static_cast<int>(shown.size()))return;
-  const auto pr=shown[static_cast<std::size_t>(row)];
-  if(selected){g.setColour(brass.withAlpha(.27f));g.fillRect(0,0,width,height);}
-  else {g.setColour(row%2?juce::Colour::fromRGB(46,42,36):juce::Colour::fromRGB(39,36,32));g.fillRect(0,0,width,height);}
-  juce::String name,style;
-  if(pr.user){name="◆  "+proc.userPresetName(pr.index);style="UTILISATEUR";}
-  else {const auto p=boom::makePreset(pr.index);
-   name=juce::String(proc.isFavorite(pr.index)?"★  ":"☆  ")+p.name;
-   style=juce::String(boom::styles()[p.style].name);
+  const auto entry=shown[static_cast<size_t>(row)];
+  const bool loaded=!entry.user&&proc.presetIndex()==entry.index;
+  g.setColour(selected?juce::Colour::fromRGB(94,27,35):
+    (row%2==0?juce::Colour::fromRGB(27,16,18):juce::Colour::fromRGB(35,20,22)));
+  g.fillRect(0,0,w,h);
+  if(selected){g.setColour(copper);g.fillRect(0,0,3,h);}
+  g.setColour(copper.withAlpha(selected?.90f:.32f));g.drawHorizontalLine(h-1,0.f,float(w));
+  juce::String name,cat,style;
+  bool star=false;
+  if(entry.user){
+   name=proc.userPresetName(entry.index);
+   cat=english?"USER":"UTILISATEUR";style="—";
+  }else{
+   const auto p=boom::makePreset(entry.index);
+   name=juce::String(p.name);
+   cat=juce::String(boom::categories[static_cast<size_t>(p.category)]);
+   style=juce::String(boom::styles()[static_cast<size_t>(p.style)].name);
+   star=proc.isFavorite(entry.index);
   }
-  g.setColour(ivory);g.setFont(font(15));
-  g.drawText(name,12,0,width-250,height,juce::Justification::centredLeft);
-  g.setColour(brass);g.setFont(font(12));
-  g.drawText(style,width-232,0,218,height,juce::Justification::centredRight);
+  const int starW=40;
+  const int nameW=juce::roundToInt((w-starW)*.46f);
+  const int catW=juce::roundToInt((w-starW)*.28f);
+  g.setColour(selected?ivory:ivory.withAlpha(.92f));g.setFont(font(13,selected));
+  g.drawFittedText((loaded?"●  ":"   ")+name,8,1,nameW-10,h-2,juce::Justification::centredLeft,1);
+  g.setColour(brass.withAlpha(.95f));g.setFont(font(11));
+  g.drawFittedText(cat,nameW,1,catW-8,h-2,juce::Justification::centredLeft,1);
+  g.drawFittedText(style,nameW+catW,1,w-starW-nameW-catW-6,h-2,juce::Justification::centredLeft,1);
+  g.setColour(star?ivory:brass.withAlpha(.6f));g.setFont(font(18));
+  g.drawText(entry.user?"◆":star?"★":"☆",w-starW,0,starW,h,juce::Justification::centred);
  }
- void listBoxItemDoubleClicked(int row,const juce::MouseEvent&)override {list.selectRow(row);loadSelected();}
- void resized()override{
-  OverlayBase::resized();
-  const auto r=getLocalBounds().reduced(22);
-  const int width=r.getWidth(),x=r.getX();
-  search.setBounds(x,77,width*37/100,36);
-  category.setBounds(x+width*38/100,77,width*29/100,36);
-  styleFilter.setBounds(x+width*68/100,77,width*32/100,36);
-  sourceFilter.setBounds(x,120,220,34);
-  list.setBounds(x,164,width,getHeight()-333);
-  userName.setBounds(x,getHeight()-160,width*38/100,34);
-  saveUser.setBounds(x+width*39/100,getHeight()-160,120,34);
-  renameUser.setBounds(x+width*52/100,getHeight()-160,130,34);
-  deleteUser.setBounds(x+width*68/100,getHeight()-160,136,34);
-  message.setBounds(x,getHeight()-116,width,25);
-  const int y=getHeight()-79;
-  previous.setBounds(x,y,106,32);
-  next.setBounds(x+114,y,106,32);
-  favourite.setBounds(x+229,y,104,32);
-  importUser.setBounds(x+346,y,148,32);
-  exportUser.setBounds(x+504,y,148,32);
-  load.setBounds(x+width-176,y,176,32);
+ void listBoxItemClicked(int row,const juce::MouseEvent& event)override {
+  if(row<0||row>=getNumRows())return;
+  // The rightmost cell is an interactive favourite control for factory presets.
+  const auto r=shown[static_cast<size_t>(row)];
+  if(event.x>list.getWidth()-47 && !r.user){
+   proc.toggleFavorite(r.index);
+   refresh();selectRow(false,r.index);
+  }
+ }
+ void listBoxItemDoubleClicked(int row,const juce::MouseEvent&)override {
+  if(row>=0&&row<getNumRows()){list.selectRow(row);loadSelected();}
+ }
+ void paint(juce::Graphics& g)override {
+  auto b=getLocalBounds().toFloat().reduced(1);
+  g.setColour(juce::Colours::black.withAlpha(.8f));g.fillRoundedRectangle(b.translated(2.f,3.f),8.f);
+  juce::ColourGradient panel(juce::Colour::fromRGB(53,17,22),b.getTopLeft(),
+                             juce::Colour::fromRGB(19,11,13),b.getBottomRight(),false);
+  g.setGradientFill(panel);g.fillRoundedRectangle(b,8.f);
+  g.setColour(copper);g.drawRoundedRectangle(b.reduced(1.f),8.f,1.5f);
+  juce::ColourGradient header(juce::Colour::fromRGB(104,36,41),0.f,0.f,
+                              juce::Colour::fromRGB(30,15,18),0.f,47.f,false);
+  g.setGradientFill(header);g.fillRoundedRectangle(b.removeFromTop(47.f),7.f);
+  g.setColour(copper.withAlpha(.75f));g.drawHorizontalLine(47,8.f,float(getWidth()-8));
+  g.setColour(ivory);g.setFont(font(16,true));
+  g.drawText(english?"FACTORY & USER PRESETS":"PRESETS D'USINE & UTILISATEUR",
+             20,9,getWidth()-300,30,juce::Justification::centredLeft);
+  g.setColour(brass);g.setFont(font(11,true));
+  g.drawText("100 PRESETS  ·  40 STYLES",getWidth()-310,12,240,23,juce::Justification::centredRight);
+  const auto a=areas();
+  auto frame=[&](juce::Rectangle<int> r){
+   g.setColour(juce::Colour::fromRGB(19,12,14));g.fillRoundedRectangle(r.toFloat(),4.f);
+   g.setColour(copper.withAlpha(.52f));g.drawRoundedRectangle(r.toFloat().reduced(.5f),4.f,1.f);
+  };
+  frame({a.sidebarX,53,a.sidebarW,getHeight()-110});
+  frame({a.mainX,89,a.mainW,getHeight()-151});
+  frame({a.detailX,53,a.detailW,getHeight()-110});
+  g.setColour(brass);g.setFont(font(10,true));
+  g.drawText(english?"CATEGORIES":"CATÉGORIES",a.sidebarX+12,61,a.sidebarW-24,22,juce::Justification::centredLeft);
+  g.drawText(english?"PRESET NAME":"NOM DU PRESET",a.mainX+11,93,a.mainW*46/100-10,20,juce::Justification::centredLeft);
+  g.drawText(english?"CATEGORY":"CATÉGORIE",a.mainX+a.mainW*46/100,93,a.mainW*28/100,20,juce::Justification::centredLeft);
+  g.drawText("STYLE",a.mainX+a.mainW*74/100,93,a.mainW*20/100,20,juce::Justification::centredLeft);
+  g.drawText("☆",a.mainX+a.mainW-35,93,25,20,juce::Justification::centred);
+  paintDetails(g,a);
+ }
+ void resized()override {
+  auto a=areas();
+  closeButton.setBounds(getWidth()-45,8,30,30);
+  categoriesList.setBounds(a.sidebarX+7,87,a.sidebarW-14,getHeight()-154);
+  search.setBounds(a.mainX,55,a.mainW-189,30);
+  styleFilter.setBounds(a.mainX+a.mainW-183,55,183,30);
+  list.setBounds(a.mainX+2,114,a.mainW-4,getHeight()-175);
+  userName.setBounds(a.detailX+12,getHeight()-102,a.detailW-24,27);
+  const int y=getHeight()-53;
+  previous.setBounds(a.mainX,y,78,29);
+  next.setBounds(a.mainX+84,y,78,29);
+  favourite.setBounds(a.mainX+169,y,119,29);
+  saveUser.setBounds(a.mainX+295,y,155,29);
+  userActions.setBounds(a.mainX+457,y,150,29);
+  load.setBounds(a.detailX+12,y,a.detailW-24,30);
+  status.setBounds(18,getHeight()-22,getWidth()-36,19);
  }
 private:
- struct Row {bool user=false;int index=-1;bool valid=false;};
+ struct Areas {
+  int sidebarX,sidebarW,mainX,mainW,detailX,detailW;
+ };
+ Areas areas()const{
+  const int pad=14,sidebar=205,detail=260,gap=12;
+  const int mainX=pad+sidebar+gap,mainW=getWidth()-2*pad-sidebar-detail-2*gap;
+  return {pad,sidebar,mainX,mainW,mainX+mainW+gap,detail};
+ }
  BoomAudioProcessor& proc;
+ CategoryModel categoryModel;
+ juce::ListBox categoriesList,list;
  juce::TextEditor search,userName;
- juce::ComboBox category,styleFilter,sourceFilter;
- juce::ListBox list;
- juce::TextButton load,previous,next,favourite,saveUser,renameUser,deleteUser,importUser,exportUser;
- juce::Label message;
+ juce::ComboBox styleFilter;
+ juce::TextButton previous,next,favourite,saveUser,userActions,load;
+ juce::Label status;
  std::unique_ptr<juce::FileChooser> fileChooser;
  std::vector<Row> shown;
- bool deleteArmed=false;int deleteIndex=-1;
+ bool english=false,deleteArmed=false;
+ int deleteIndex=-1;
  Row getSelected()const {
-  const auto row=list.getSelectedRow();
-  return row>=0&&row<int(shown.size())?shown[static_cast<std::size_t>(row)]:Row{};
+  const int r=list.getSelectedRow();
+  return r>=0&&r<static_cast<int>(shown.size())?shown[static_cast<size_t>(r)]:Row{};
  }
- void selectRow(bool isUser,int index){
-  for(int i=0;i<int(shown.size());++i)if(shown[static_cast<std::size_t>(i)].user==isUser &&
-     shown[static_cast<std::size_t>(i)].index==index){list.selectRow(i);break;}
+ void selectRow(bool user,int index){
+  for(int i=0;i<static_cast<int>(shown.size());++i){
+   auto row=shown[static_cast<size_t>(i)];
+   if(row.user==user&&row.index==index){list.selectRow(i);return;}
+  }
+ }
+ void setStatus(const juce::String& text){
+  status.setText(text,juce::dontSendNotification);
  }
  void refresh(){
-  shown.clear();const auto query=search.getText().trim();
-  if(sourceFilter.getSelectedId()!=3){
-   for(int i=0;i<100;++i){const auto pr=boom::makePreset(i);
-    if(category.getSelectedId()>1&&pr.category!=category.getSelectedId()-2)continue;
-    if(styleFilter.getSelectedId()>1&&pr.style!=styleFilter.getSelectedId()-2)continue;
-    if(!juce::String(pr.name).containsIgnoreCase(query))continue;
+  const auto old=getSelected();
+  shown.clear();
+  const int cat=categoriesList.getSelectedRow();
+  const int style=styleFilter.getSelectedId();
+  const auto query=search.getText().trim();
+  if(cat!=12){
+   for(int i=0;i<100;++i){
+    const auto p=boom::makePreset(i);
+    if(cat>=1&&cat<=10&&p.category!=cat-1)continue;
+    if(cat==11&&!proc.isFavorite(i))continue;
+    if(style>1&&p.style!=style-2)continue;
+    if(!juce::String(p.name).containsIgnoreCase(query)
+        && !juce::String(boom::styles()[static_cast<size_t>(p.style)].name).containsIgnoreCase(query)
+        && !juce::String(boom::categories[static_cast<size_t>(p.category)]).containsIgnoreCase(query))continue;
     shown.push_back({false,i,true});
    }
   }
-  if(sourceFilter.getSelectedId()!=2 && category.getSelectedId()==1 && styleFilter.getSelectedId()==1){
+  if((cat==0||cat==12)&&style<=1){
    for(int i=0;i<proc.userPresetCount();++i){
     if(proc.userPresetName(i).containsIgnoreCase(query))shown.push_back({true,i,true});
    }
   }
-  list.updateContent();list.deselectAllRows();if(!shown.empty())list.selectRow(0);
+  list.updateContent();
+  list.deselectAllRows();
+  if(old.valid)selectRow(old.user,old.index);
+  if(list.getSelectedRow()<0&&!shown.empty())list.selectRow(0);
+  categoriesList.repaint();
+  repaint();
  }
- void move(int delta){if(shown.empty())return;
-  list.selectRow(juce::jlimit(0,getNumRows()-1,list.getSelectedRow()+delta));
+ void paintCategoryItem(int row,juce::Graphics& g,int w,int h,bool selected){
+  if(row<0||row>=13)return;
+  juce::String name;
+  int count=0;
+  if(row==0){name=english?"ALL PRESETS":"TOUS LES PRESETS";count=100+proc.userPresetCount();}
+  else if(row<=10){name=juce::String(boom::categories[static_cast<size_t>(row-1)]);count=10;}
+  else if(row==11){
+   name=english?"★ Favorites":"★ Favoris";
+   for(int i=0;i<100;++i)if(proc.isFavorite(i))++count;
+  }else{name=english?"◆ User presets":"◆ Mes presets";count=proc.userPresetCount();}
+  g.setColour(selected?juce::Colour::fromRGB(99,26,37):deep.withAlpha(row%2?0.78f:.95f));
+  g.fillRect(0,0,w,h);
+  if(selected){g.setColour(copper);g.fillRect(0,0,3,h);}
+  g.setColour(selected?ivory:brass);g.setFont(font(11,selected));
+  g.drawFittedText(name,8,0,w-42,h,juce::Justification::centredLeft,1);
+  g.setColour(selected?ivory:brass.withAlpha(.65f));g.setFont(font(10));
+  g.drawText(juce::String(count),w-38,0,31,h,juce::Justification::centredRight);
  }
- void loadSelected(){const auto row=getSelected();if(!row.valid)return;
-  const bool ok=row.user?proc.loadUserPreset(row.index):(proc.loadFactoryPreset(row.index),true);
-  if(ok)message.setText("Preset chargé : les paramètres audio ont été rappelés.",juce::dontSendNotification);
-  if(row.user)userName.setText(proc.userPresetName(row.index),juce::dontSendNotification);
+ void paintDetails(juce::Graphics& g,const Areas& a){
+  const auto r=getSelected();
+  const int x=a.detailX+14,y=62,w=a.detailW-28;
+  g.setColour(brass);g.setFont(font(11,true));
+  g.drawText(english?"MASTERING PROFILE":"PROFIL DE MASTERING",x,y,w,17,juce::Justification::centredLeft);
+  if(!r.valid){
+   g.setColour(ivory.withAlpha(.8f));g.setFont(font(13));
+   g.drawFittedText(english?"Choose a preset to preview its settings."
+                :"Sélectionnez un preset pour découvrir ses réglages.",
+                x,y+29,w,62,juce::Justification::topLeft,3);
+   return;
+  }
+  juce::String title,sub;
+  if(r.user){
+   title=proc.userPresetName(r.index);
+   sub=english?"User preset · saved in DAW project":"Preset utilisateur · enregistré dans le projet DAW";
+   g.setColour(ivory);g.setFont(font(17,true));
+   g.drawFittedText(title,x,y+22,w,26,juce::Justification::centredLeft,1);
+   g.setColour(brass);g.setFont(font(11));g.drawFittedText(sub,x,y+51,w,37,juce::Justification::topLeft,2);
+   g.drawFittedText(english?"Load, rename, export or delete via USER LIBRARY."
+                :"Charger, renommer, exporter ou supprimer via UTILISATEUR.",
+                x,y+94,w,48,juce::Justification::topLeft,3);
+   return;
+  }
+  const auto p=boom::makePreset(r.index);
+  title=juce::String(p.name);
+  sub=juce::String(boom::categories[static_cast<size_t>(p.category)])
+      +"  |  "+juce::String(boom::styles()[static_cast<size_t>(p.style)].name);
+  g.setColour(ivory);g.setFont(font(17,true));
+  g.drawFittedText(title,x,y+22,w,27,juce::Justification::centredLeft,1);
+  g.setColour(brass);g.setFont(font(10));
+  g.drawFittedText(sub,x,y+51,w,22,juce::Justification::centredLeft,1);
+  g.setColour(copper.withAlpha(.55f));g.drawLine(float(x),float(y+78),float(x+w),float(y+78),1.f);
+  const auto colorName=p.params.color==0?"CLEAN":p.params.color==1?"TUBE":"TAPE";
+  const juce::String names[]={
+   english?"INPUT":"ENTRÉE",english?"PUSH":"PUSH",
+   english?"COLOR":"COULEUR",english?"GLUE":"GLUE",
+   english?"CEILING":"PLAFOND",english?"STYLE":"STYLE"
+  };
+  const juce::String values[]={
+   juce::String(p.params.inputDb,1)+" dB",juce::String(p.params.push,0)+" %",
+   juce::String(colorName),juce::String(p.params.compRatio,2)+" : 1",
+   juce::String(p.params.ceilingDb,1)+" dBFS",
+   juce::String(boom::styles()[static_cast<size_t>(p.style)].name)
+  };
+  for(int i=0;i<6;++i){
+   const int yy=y+84+i*17;
+   g.setColour(brass);g.setFont(font(10));g.drawText(names[i],x,yy,78,17,juce::Justification::centredLeft);
+   g.setColour(ivory);g.setFont(font(10,true));
+   g.drawFittedText(values[i],x+78,yy,w-78,17,juce::Justification::centredRight,1);
+  }
+  g.setColour(brass.withAlpha(.85f));g.setFont(font(10));
+  g.drawFittedText(english?"Full audio-chain recall · double-click to load."
+               :"Rappel de toute la chaîne DSP · double-clic pour charger.",
+               x,getHeight()-121,w,20,juce::Justification::centredLeft,1);
+ }
+ void move(int offset){
+  if(shown.empty())return;
+  list.selectRow(juce::jlimit(0,getNumRows()-1,juce::jmax(0,list.getSelectedRow())+offset));
+ }
+ void loadSelected(){
+  const auto r=getSelected();
+  if(!r.valid){setStatus(english?"No preset selected.":"Aucun preset sélectionné.");return;}
+  const bool ok=r.user?proc.loadUserPreset(r.index):(proc.loadFactoryPreset(r.index),true);
+  setStatus(ok?(english?"Preset loaded — audio parameters updated.":"Preset chargé — tous les paramètres audio sont actualisés.")
+              :(english?"Unable to load preset.":"Chargement impossible."));
+  repaint();
+ }
+ void save(){
+  const int idx=proc.saveUserPreset(userName.getText());
+  setStatus(idx>=0?(english?"Saved to DAW project. Export .boom to share.":"Enregistré dans le projet DAW. Exportez le .boom pour le partager.")
+     :(english?"Enter a name (up to 512 user presets).":"Saisissez un nom (512 presets utilisateur maximum)."));
+  if(idx>=0){search.clear();styleFilter.setSelectedId(1,juce::dontSendNotification);
+   categoriesList.selectRow(12);refresh();selectRow(true,idx);}
+ }
+ void openActions(){
+  juce::PopupMenu menu;
+  menu.addItem(1,english?"Save current settings":"Enregistrer le réglage actuel");
+  menu.addItem(2,english?"Rename selected user preset":"Renommer le preset utilisateur");
+  menu.addItem(3,english?"Delete selected user preset":"Supprimer le preset utilisateur");
+  menu.addSeparator();
+  menu.addItem(4,english?"Import .boom preset":"Importer un preset .boom");
+  menu.addItem(5,english?"Export selected .boom preset":"Exporter le preset .boom");
+  juce::Component::SafePointer<BrowserPanel> safe(this);
+  menu.showMenuAsync(juce::PopupMenu::Options().withTargetComponent(userActions),
+      [safe](int action){if(safe!=nullptr)safe->handleAction(action);});
+ }
+ void handleAction(int action){
+  if(action==1){save();return;}
+  const auto r=getSelected();
+  if(action==4){openImport();return;}
+  if(!r.valid||!r.user){
+   setStatus(english?"Select a user preset first.":"Sélectionnez d'abord un preset utilisateur.");return;
+  }
+  if(action==2){
+   const bool ok=proc.renameUserPreset(r.index,userName.getText());
+   setStatus(ok?(english?"Preset renamed.":"Preset renommé."):(english?"Name required.":"Nom requis."));
+   refresh();return;
+  }
+  if(action==3){
+   if(!deleteArmed||deleteIndex!=r.index){
+    deleteArmed=true;deleteIndex=r.index;
+    setStatus(english?"Select Delete a second time to confirm.":"Sélectionnez Supprimer une deuxième fois pour confirmer.");return;
+   }
+   const bool ok=proc.deleteUserPreset(r.index);
+   deleteArmed=false;deleteIndex=-1;
+   setStatus(ok?(english?"Preset deleted.":"Preset supprimé."):(english?"Unable to delete.":"Suppression impossible."));
+   refresh();return;
+  }
+  if(action==5)openExport();
  }
  void openImport(){
-  fileChooser=std::make_unique<juce::FileChooser>("Importer un preset BOOM",juce::File{},"*.boom");
+  fileChooser=std::make_unique<juce::FileChooser>(english?"Import BOOM preset":"Importer un preset BOOM",juce::File{},"*.boom");
   juce::Component::SafePointer<BrowserPanel> safe(this);
-  fileChooser->launchAsync(juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles,
-    [safe](const juce::FileChooser& chooser){
-     if(safe==nullptr)return;
-     const auto file=chooser.getResult();if(file==juce::File{})return;
-     const bool ok=safe->proc.importUserPreset(file);
-     safe->message.setText(ok?"Preset importé dans la bibliothèque du projet.":
-       "Fichier invalide ou bibliothèque pleine.",juce::dontSendNotification);
-     if(ok){
-      safe->category.setSelectedId(1,juce::dontSendNotification);
-      safe->styleFilter.setSelectedId(1,juce::dontSendNotification);
-      safe->search.clear();
-      safe->sourceFilter.setSelectedId(3,juce::dontSendNotification);
-      safe->refresh();safe->selectRow(true,safe->proc.userPresetCount()-1);
-     }
-    });
+  fileChooser->launchAsync(juce::FileBrowserComponent::openMode|juce::FileBrowserComponent::canSelectFiles,
+   [safe](const juce::FileChooser& chooser){
+    if(safe==nullptr)return;
+    auto file=chooser.getResult();if(file==juce::File{})return;
+    const bool ok=safe->proc.importUserPreset(file);
+    safe->setStatus(ok?(safe->english?"Preset imported.":"Preset importé."):(safe->english?"Invalid file or full library.":"Fichier invalide ou bibliothèque pleine."));
+    if(ok){safe->search.clear();safe->styleFilter.setSelectedId(1,juce::dontSendNotification);
+      safe->categoriesList.selectRow(12);safe->refresh();safe->selectRow(true,safe->proc.userPresetCount()-1);}
+   });
  }
  void openExport(){
-  const auto row=getSelected();if(!row.valid||!row.user){
-   message.setText("Sélectionnez un preset utilisateur pour l'exporter.",juce::dontSendNotification);return;
-  }
-  auto suggested=juce::File::getSpecialLocation(juce::File::userDocumentsDirectory)
-   .getChildFile(juce::File::createLegalFileName(proc.userPresetName(row.index))+".boom");
-  fileChooser=std::make_unique<juce::FileChooser>("Exporter un preset BOOM",suggested,"*.boom");
+  const auto r=getSelected();if(!r.valid||!r.user)return;
+  const auto suggested=juce::File::getSpecialLocation(juce::File::userDocumentsDirectory)
+    .getChildFile(juce::File::createLegalFileName(proc.userPresetName(r.index))+".boom");
+  fileChooser=std::make_unique<juce::FileChooser>(english?"Export BOOM preset":"Exporter un preset BOOM",suggested,"*.boom");
   juce::Component::SafePointer<BrowserPanel> safe(this);
-  const int index=row.index;
-  fileChooser->launchAsync(juce::FileBrowserComponent::saveMode | juce::FileBrowserComponent::canSelectFiles |
+  const int index=r.index;
+  fileChooser->launchAsync(juce::FileBrowserComponent::saveMode|juce::FileBrowserComponent::canSelectFiles|
     juce::FileBrowserComponent::warnAboutOverwriting,
     [safe,index](const juce::FileChooser& chooser){
      if(safe==nullptr)return;
      auto file=chooser.getResult();if(file==juce::File{})return;
      file=file.withFileExtension(".boom");
      const bool ok=safe->proc.exportUserPreset(index,file);
-     safe->message.setText(ok?"Preset exporté vers : "+file.getFileName():
-      "Impossible d'exporter le preset.",juce::dontSendNotification);
+     safe->setStatus(ok?(safe->english?"Preset exported.":"Preset exporté."):(safe->english?"Export failed.":"Échec de l'export."));
     });
  }
 };
@@ -604,7 +800,7 @@ void BoomAudioProcessorEditor::resized(){
  recallA.setBounds(rect(878,850,70,30));recallB.setBounds(rect(953,850,70,30));
  if(overlay){
   const bool isPresetBrowser=dynamic_cast<BrowserPanel*>(overlay.get())!=nullptr;
-  overlay->setBounds(isPresetBrowser?rect(170,229,1100,640):rect(190,435,1060,432));
+  overlay->setBounds(isPresetBrowser?rect(24,124,1392,292):rect(190,435,1060,432));
  }
 }
 void BoomAudioProcessorEditor::timerCallback(){
