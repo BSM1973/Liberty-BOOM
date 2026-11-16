@@ -43,19 +43,44 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - runner: macos-15
-            label: macOS-ARM64
           - runner: macos-15-intel
-            label: macOS-Intel
+            label: macOS-Universal-arm64-x86_64
           - runner: windows-2022
             label: Windows-x64
     runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@v4
-      - name: Configure JUCE 8.0.10 plugin
+      - name: Configure JUCE 8.0.10 universal macOS plugin
+        if: runner.os == 'macOS'
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON '-DCMAKE_OSX_ARCHITECTURES=arm64;x86_64'
+      - name: Configure JUCE 8.0.10 Windows plugin
+        if: runner.os == 'Windows'
         run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON
       - name: Build AU / VST3 and standalone
         run: cmake --build build --config Release --parallel 3
+      - name: Verify Universal AU VST3 and Standalone Mach-O architectures
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          set -euo pipefail
+          for format in AU VST3 Standalone; do
+            case "$format" in
+              AU) bundle="build/BOOM_artefacts/Release/AU/BOOM.component" ;;
+              VST3) bundle="build/BOOM_artefacts/Release/VST3/BOOM.vst3" ;;
+              Standalone) bundle="build/BOOM_artefacts/Release/Standalone/BOOM.app" ;;
+            esac
+            binary="$bundle/Contents/MacOS/BOOM"
+            if [[ ! -f "$binary" ]]; then
+              echo "::error::Missing Mach-O binary: $binary"
+              exit 1
+            fi
+            arches="$(lipo -archs "$binary")"
+            echo "$format: $arches"
+            if [[ " $arches " != *" arm64 "* ]] || [[ " $arches " != *" x86_64 "* ]]; then
+              echo "::error::Expected universal arm64 + x86_64 binary in $binary"
+              exit 1
+            fi
+          done
       - name: Test DSP
         run: ctest --test-dir build -C Release --output-on-failure
       - name: Upload unsigned development plugins
