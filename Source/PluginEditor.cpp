@@ -1,858 +1,684 @@
 #include "PluginEditor.h"
+#include <BinaryData.h>
+#include <array>
+#include <algorithm>
 #include <cmath>
 
 namespace {
-const juce::Colour brass=juce::Colour::fromRGB(198,161,101);
-const juce::Colour ivory=juce::Colour::fromRGB(239,222,179);
-const juce::Colour charcoal=juce::Colour::fromRGB(30,17,19);
-const juce::Colour walnut=juce::Colour::fromRGB(62,19,24);
-const juce::Colour amber=juce::Colour::fromRGB(198,100,72);
-const juce::Colour deep=juce::Colour::fromRGB(17,9,12);
-const juce::Colour copper=juce::Colour::fromRGB(170,79,62);
-const juce::Font font(float size,bool bold=false){return juce::Font(juce::FontOptions(size,bold?juce::Font::bold:juce::Font::plain));}
+const auto gold=juce::Colour::fromRGB(229,201,148);
+const auto copper=juce::Colour::fromRGB(195,112,78);
+const auto crimson=juce::Colour::fromRGB(123,22,36);
+const auto velvet=juce::Colour::fromRGB(24,9,12);
+const auto ivory=juce::Colour::fromRGB(247,226,186);
+const auto muted=juce::Colour::fromRGB(181,152,110);
+const char* mainIds[]={"inputDb","eq60","eq120","eq3k","eq6k","eq10k","push"};
 
-class OverlayBase:public juce::Component {
-public:
- explicit OverlayBase(juce::String title,std::function<void()> close):heading(std::move(title)),onClose(std::move(close)){
-  addAndMakeVisible(closeButton);closeButton.setButtonText("FERMER  ×");closeButton.onClick=[this]{
-   auto callback=onClose; juce::MessageManager::callAsync([callback]{callback();});
-  };
- }
- void paint(juce::Graphics& g)override{
-  auto bounds=getLocalBounds().toFloat();
-  g.setColour(juce::Colours::black.withAlpha(0.83f));g.fillRoundedRectangle(bounds,10);
-  g.setColour(brass);g.drawRoundedRectangle(bounds.reduced(2),10,2);
-  g.setColour(ivory);g.setFont(font(22,true));g.drawText(heading,24,12,getWidth()-200,32,juce::Justification::centredLeft);
-  g.setColour(brass.withAlpha(.5f));g.drawLine(20.f,56.f,float(getWidth()-20),56.f);
- }
- void resized()override{closeButton.setBounds(getWidth()-132,14,110,32);}
-protected:
- juce::String heading;
- juce::TextButton closeButton;
- std::function<void()> onClose;
-};
+juce::Font makeFont(float sz,bool bold=false){
+ return juce::Font(juce::FontOptions(sz,bold?juce::Font::bold:juce::Font::plain));
+}
+bool hit(juce::Point<float> p,float x,float y,float w,float h){
+ return juce::Rectangle<float>(x,y,w,h).contains(p);
+}
+}
 
-class BrowserPanel final : public OverlayBase, private juce::ListBoxModel {
-private:
- struct Row { bool user=false; int index=-1; bool valid=false; };
- class CategoryModel final : public juce::ListBoxModel {
- public:
-  explicit CategoryModel(BrowserPanel& p):owner(p){}
-  int getNumRows() override { return 13; }
-  void paintListBoxItem(int row,juce::Graphics& g,int w,int h,bool selected) override {
-   owner.paintCategoryItem(row,g,w,h,selected);
-  }
-  void selectedRowsChanged(int) override { owner.refresh(); }
- private:
-  BrowserPanel& owner;
+BoomAudioProcessorEditor::BoomAudioProcessorEditor(BoomAudioProcessor& p)
+ :juce::AudioProcessorEditor(&p),proc(p){
+ chainSkin=juce::ImageFileFormat::loadFrom(BinaryData::boom_console_reference_jpg,
+                                         static_cast<size_t>(BinaryData::boom_console_reference_jpgSize));
+ browserSkin=juce::ImageFileFormat::loadFrom(BinaryData::boom_browser_reference_jpg,
+                                           static_cast<size_t>(BinaryData::boom_browser_reference_jpgSize));
+ english=raw("language")>0.5f;
+ addAndMakeVisible(search);
+ search.setTextToShowWhenEmpty(english?"Search the 100 factory presets...":"Rechercher parmi les 100 presets...",muted);
+ search.setColour(juce::TextEditor::backgroundColourId,juce::Colour::fromRGB(27,13,15));
+ search.setColour(juce::TextEditor::textColourId,ivory);
+ search.setColour(juce::TextEditor::outlineColourId,copper);
+ search.setColour(juce::TextEditor::focusedOutlineColourId,gold);
+ search.setFont(makeFont(15));
+ search.onTextChange=[this]{refreshRows();};
+ addAndMakeVisible(saveName);
+ saveName.setTextToShowWhenEmpty(english?"Save current preset...":"Sauvegarder le preset actuel...",muted);
+ saveName.setColour(juce::TextEditor::backgroundColourId,juce::Colour::fromRGB(26,11,13));
+ saveName.setColour(juce::TextEditor::textColourId,ivory);
+ saveName.setColour(juce::TextEditor::outlineColourId,copper);
+ saveName.setColour(juce::TextEditor::focusedOutlineColourId,gold);
+ saveName.setFont(makeFont(13));
+ saveName.onReturnKey=[this]{saveCurrent();};
+ saveName.onEscapeKey=[this]{saveName.clear();giveAwayKeyboardFocus();};
+ refreshRows();
+ setResizable(true,false);
+ setResizeLimits(1100,620,2200,1400);
+ setSize(chainW,chainH);
+ startTimerHz(30);
+}
+BoomAudioProcessorEditor::~BoomAudioProcessorEditor(){
+ finishDrag();stopTimer();
+}
+int BoomAudioProcessorEditor::artW()const noexcept {return page==Page::browser?browserW:chainW;}
+int BoomAudioProcessorEditor::artH()const noexcept {return page==Page::browser?browserH:chainH;}
+juce::Point<float> BoomAudioProcessorEditor::artPoint(const juce::MouseEvent& e)const{
+ const auto p=e.position;
+ return {p.x*float(artW())/float(juce::jmax(1,getWidth())),
+         p.y*float(artH())/float(juce::jmax(1,getHeight()))};
+}
+juce::Rectangle<int> BoomAudioProcessorEditor::artRect(int x,int y,int w,int h)const{
+ return {juce::roundToInt(float(x)*getWidth()/artW()),
+         juce::roundToInt(float(y)*getHeight()/artH()),
+         juce::roundToInt(float(w)*getWidth()/artW()),
+         juce::roundToInt(float(h)*getHeight()/artH())};
+}
+void BoomAudioProcessorEditor::resized(){
+ search.setBounds(artRect(393,138,445,30));
+ saveName.setBounds(artRect(940,396,205,27));
+ const bool onBrowser=page==Page::browser;
+ search.setVisible(onBrowser);saveName.setVisible(onBrowser);
+}
+void BoomAudioProcessorEditor::showPage(Page newPage){
+ finishDrag();
+ page=newPage;
+ if(page==Page::browser){
+  refreshRows();
+  setSize(browserW,browserH);
+ }else{
+  setSize(chainW,chainH);
+ }
+ resized();repaint();
+}
+float BoomAudioProcessorEditor::raw(const char* id)const{
+ if(const auto* v=proc.state().getRawParameterValue(id))return v->load();
+ return 0.f;
+}
+void BoomAudioProcessorEditor::setParam(const char* id,float rawValue){
+ if(auto* p=proc.state().getParameter(id))
+  p->setValueNotifyingHost(p->convertTo0to1(rawValue));
+ repaint();
+}
+void BoomAudioProcessorEditor::toggle(const char* id){setParam(id,raw(id)>0.5f?0.f:1.f);}
+void BoomAudioProcessorEditor::beginDrag(const char* id,const juce::MouseEvent& e){
+ finishDrag();
+ if(auto* p=proc.state().getParameter(id)){
+  dragged=id;startPosition=artPoint(e);startValue=raw(id);
+  p->beginChangeGesture();isGesture=true;
+ }
+}
+void BoomAudioProcessorEditor::finishDrag(){
+ if(isGesture){
+  if(auto* p=proc.state().getParameter(dragged))p->endChangeGesture();
+ }
+ isGesture=false;dragged.clear();
+}
+const BoomAudioProcessorEditor::Knob* BoomAudioProcessorEditor::activeKnob(juce::Point<float> point)const{
+ static const Knob chain[]={{233,624,122,"inputDb",233,767},
+  {503,742,62,"eq60",503,809},{663,742,62,"eq120",663,809},
+  {822,742,62,"eq3k",822,809},{981,742,62,"eq6k",981,809},
+  {1141,742,62,"eq10k",1141,809},{1425,624,123,"push",1425,767}};
+ static const Knob browser[]={{218,680,112,"inputDb",218,811},
+  {497,778,55,"eq60",497,846},{633,778,55,"eq120",633,846},
+  {775,778,55,"eq3k",775,846},{914,778,55,"eq6k",914,846},
+  {1052,778,55,"eq10k",1052,846},{1331,680,113,"push",1331,811}};
+ const auto& knobs=(page==Page::browser)?browser:chain;
+ for(const auto& k:knobs){
+  const float dx=point.x-k.x,dy=point.y-k.y;
+  if(dx*dx+dy*dy<=k.r*k.r)return &k;
+ }
+ return nullptr;
+}
+const BoomAudioProcessorEditor::Field* BoomAudioProcessorEditor::chainField(juce::Point<float> p)const{
+ static const Field fields[]={
+  {{249,205,54,27},"colorMix"},{{249,229,54,28},"colorDrive"},
+  {{484,181,56,20},"eq60"},{{484,204,56,20},"eq120"},
+  {{484,226,56,20},"eq3k"},{{484,249,56,20},"eq6k"},{{484,270,56,20},"eq10k"},
+  {{730,181,56,21},"deFreq"},{{730,205,56,20},"deTh"},
+  {{730,228,56,21},"deAmt"},{{730,250,56,20},"deRel"},
+  {{988,180,56,21},"compTh"},{{988,201,56,21},"compRatio"},
+  {{988,224,56,21},"compAttack"},{{988,246,56,21},"compRelease"},
+  {{988,270,56,20},"compMakeup"},{{988,292,56,20},"compMix"},
+  {{1240,180,55,21},"limitTh"},{{1240,202,55,22},"ceiling"},
+  {{1240,226,55,21},"limitRelease"},{{1510,180,52,21},"outDb"}
  };
-public:
- explicit BrowserPanel(BoomAudioProcessor& p,std::function<void()> close)
-  :OverlayBase("PRESETS D'USINE & UTILISATEUR",std::move(close)),proc(p),categoryModel(*this) {
-  english=proc.state().getRawParameterValue("language")->load()>0.5f;
-  closeButton.setButtonText("×");
-  closeButton.setTooltip(english?"Close browser":"Fermer le navigateur");
-  addAndMakeVisible(categoriesList);
-  categoriesList.setModel(&categoryModel);
-  categoriesList.setRowHeight(28);
-  categoriesList.setColour(juce::ListBox::backgroundColourId,deep);
-  categoriesList.setOutlineThickness(0);
-  addAndMakeVisible(search);
-  search.setTextToShowWhenEmpty(english?"Search across 100 factory presets...":"Rechercher parmi les 100 presets...",brass.withAlpha(.65f));
-  search.setColour(juce::TextEditor::backgroundColourId,deep);
-  search.setColour(juce::TextEditor::textColourId,ivory);
-  search.setColour(juce::TextEditor::outlineColourId,copper);
-  search.onTextChange=[this]{refresh();};
-  addAndMakeVisible(styleFilter);
-  styleFilter.addItem(english?"All Styles":"Tous les Styles",1);
-  for(int i=0;i<40;++i)styleFilter.addItem(juce::String(boom::styles()[static_cast<size_t>(i)].name),i+2);
-  styleFilter.setSelectedId(1,juce::dontSendNotification);
-  styleFilter.onChange=[this]{refresh();};
-  addAndMakeVisible(list);
-  list.setModel(this);
-  list.setRowHeight(31);
-  list.setOutlineThickness(0);
-  list.setColour(juce::ListBox::backgroundColourId,deep);
-  list.setColour(juce::ListBox::outlineColourId,copper);
-  addAndMakeVisible(userName);
-  userName.setTextToShowWhenEmpty(english?"Name for your preset...":"Nom de votre preset utilisateur...",brass.withAlpha(.65f));
-  userName.setColour(juce::TextEditor::backgroundColourId,deep);
-  userName.setColour(juce::TextEditor::textColourId,ivory);
-  userName.setColour(juce::TextEditor::outlineColourId,copper);
-  const auto addButton=[this](juce::TextButton& b,const juce::String& text,std::function<void()> fn){
-   addAndMakeVisible(b);b.setButtonText(text);b.onClick=std::move(fn);
-  };
-  addButton(previous,english?"◀ PREV":"◀ PRÉC.",[this]{move(-1);});
-  addButton(next,english?"NEXT ▶":"SUIV. ▶",[this]{move(1);});
-  addButton(favourite,english?"☆ FAVORITE":"☆ FAVORI",[this]{
-   auto r=getSelected();
-   if(!r.valid||r.user){setStatus(english?"Select a factory preset.":"Sélectionnez un preset d'usine.");return;}
-   proc.toggleFavorite(r.index);
-   refresh();
-   selectRow(false,r.index);
-  });
-  addButton(saveUser,english?"SAVE AS...":"ENREGISTRER...",[this]{save();});
-  addButton(userActions,english?"USER LIBRARY ▾":"UTILISATEUR ▾",[this]{openActions();});
-  addButton(load,english?"▶ LOAD PRESET":"▶ CHARGER LE PRESET",[this]{loadSelected();});
-  addAndMakeVisible(status);
-  status.setColour(juce::Label::textColourId,brass);
-  status.setFont(font(11));
-  status.setText(english?"Double-click a preset to load it. Factory sounds remain unchanged."
-                        :"Double-cliquez sur un preset pour le charger. Les 100 presets d'usine restent intacts.",
-                 juce::dontSendNotification);
-  categoriesList.selectRow(0);
-  refresh();
+ for(const auto& f:fields)if(f.area.contains(p))return &f;
+ return nullptr;
+}
+void BoomAudioProcessorEditor::drawValue(juce::Graphics& g,const juce::String& value,
+  float x,float y,float w,float h,int)const{
+ g.setColour(juce::Colour::fromRGB(25,13,15).withAlpha(.97f));
+ g.fillRoundedRectangle(x,y,w,h,2.5f);
+ g.setColour(copper.withAlpha(.78f));
+ g.drawRoundedRectangle(x,y,w,h,2.5f,1.f);
+ g.setColour(ivory);g.setFont(makeFont(h>22?16.f:12.f,true));
+ g.drawFittedText(value,juce::Rectangle<int>(int(x+3),int(y),int(w-6),int(h)),
+                  juce::Justification::centredRight,1);
+}
+void BoomAudioProcessorEditor::renderKnobs(juce::Graphics& g){
+ const bool browse=page==Page::browser;
+ for(int i=0;i<7;++i){
+  const char* id=mainIds[i];
+  const float value=raw(id);
+  const bool big=i==0||i==6;
+  const float x=big?(i==0?(browse?218.f:233.f):(browse?1331.f:1425.f)):0.f;
+  float cx=x,cy=big?(browse?680.f:624.f):(browse?778.f:742.f);
+  if(!big){
+   const float bx[]={497,633,775,914,1052},ch[]={503,663,822,981,1141};
+   cx=browse?bx[i-1]:ch[i-1];
+  }
+  const float radius=big?(browse?95.f:107.f):(browse?46.f:52.f);
+  float mn=0.f,mx=100.f;
+  if(auto* p=proc.state().getParameter(id)){
+   const auto r=p->getNormalisableRange();mn=r.start;mx=r.end;
+  }
+  const float norm=juce::jlimit(0.f,1.f,(value-mn)/juce::jmax(.001f,mx-mn));
+  const float a=-2.3f+4.6f*norm;
+  const float px=cx+std::sin(a)*radius,py=cy-std::cos(a)*radius;
+  g.setColour(juce::Colours::black.withAlpha(.65f));g.fillEllipse(px-5,py-4,11,11);
+  g.setColour(gold);g.fillEllipse(px-3,py-3,6,6);
+  const float textY=big?(browse?807.f:764.f):(browse?840.f:803.f);
+  const float textW=big?85.f:76.f;
+  juce::String label=juce::String(value,1)+(i==6?" %":" dB");
+  g.setColour(juce::Colour::fromRGB(28,14,17).withAlpha(.98f));
+  g.fillRect(cx-textW*.5f,textY,textW,24.f);
+  g.setColour(ivory);g.setFont(makeFont(big?21.f:16.f));
+  g.drawText(label,int(cx-textW*.5f),int(textY),int(textW),23,juce::Justification::centred);
  }
- ~BrowserPanel()override {
-  list.setModel(nullptr);
-  categoriesList.setModel(nullptr);
+}
+void BoomAudioProcessorEditor::renderMeterNeedles(juce::Graphics& g){
+ if(!showMeterNeedles)return;
+ const bool b=page==Page::browser;
+ const float level[]={smoothVuL,smoothVuR};
+ const float originX[]={b?594.f:618.f,b?953.f:1034.f};
+ const float originY[]={b?695.f:631.f,b?695.f:631.f};
+ const float length=b?110.f:121.f;
+ for(int c=0;c<2;++c){
+  if(level[c]<.001f)continue; // the reference photograph already shows the idle needle
+  const float db=juce::jlimit(-20.f,3.f,boom::gainToDb(level[c]/boom::dbToGain(-18.f)));
+  const float angle=juce::jmap(db,-20.f,3.f,-1.11f,1.11f);
+  const float x=originX[c],y=originY[c];
+  const float tipX=x+std::sin(angle)*length,tipY=y-std::cos(angle)*length;
+  g.setColour(juce::Colours::black.withAlpha(.45f));g.drawLine(x+1,y+2,tipX+1,tipY+2,4.f);
+  g.setColour(juce::Colour::fromRGB(49,31,20));g.drawLine(x,y,tipX,tipY,2.1f);
+  g.setColour(copper);g.fillEllipse(x-3,y-3,6,6);
  }
- int getNumRows() override { return static_cast<int>(shown.size()); }
- void selectedRowsChanged(int) override {
-  deleteArmed=false;
-  const auto r=getSelected();
-  if(r.valid && r.user)userName.setText(proc.userPresetName(r.index),juce::dontSendNotification);
-  repaint();
+}
+void BoomAudioProcessorEditor::renderDynamicText(juce::Graphics& g){
+ // Keep the supplied photographed chrome; only redraw state-dependent typography.
+ const bool b=page==Page::browser;
+ const int si=proc.styleIndex(),pi=proc.presetIndex();
+ if(si>=0&&si<40){
+  const int x=b?123:130,y=b?34:40,w=b?235:280;
+  g.setColour(juce::Colour::fromRGB(24,9,12).withAlpha(.95f));g.fillRect(x,y,w,27);
+  g.setColour(ivory);g.setFont(makeFont(22,true));
+  g.drawFittedText(juce::String(boom::styles()[static_cast<size_t>(si)].name),x,y,w,27,juce::Justification::centredLeft,1);
  }
- void paintListBoxItem(int row,juce::Graphics& g,int w,int h,bool selected)override {
-  if(row<0||row>=static_cast<int>(shown.size()))return;
-  const auto entry=shown[static_cast<size_t>(row)];
-  const bool loaded=!entry.user&&proc.presetIndex()==entry.index;
-  g.setColour(selected?juce::Colour::fromRGB(94,27,35):
-    (row%2==0?juce::Colour::fromRGB(27,16,18):juce::Colour::fromRGB(35,20,22)));
-  g.fillRect(0,0,w,h);
-  if(selected){g.setColour(copper);g.fillRect(0,0,3,h);}
-  g.setColour(copper.withAlpha(selected?.90f:.32f));g.drawHorizontalLine(h-1,0.f,float(w));
+ if(pi>=0&&pi<100){
+  const int x=b?1204:1250,y=b?34:40,w=b?260:265;
+  g.setColour(juce::Colour::fromRGB(24,9,12).withAlpha(.96f));g.fillRect(x,y,w,27);
+  g.setColour(ivory);g.setFont(makeFont(19,true));
+  g.drawFittedText(juce::String(boom::makePreset(pi).name),x,y,w,27,juce::Justification::centredLeft,1);
+ }
+ renderKnobs(g);
+ renderMeterNeedles(g);
+ // Status LEDs for DSP toggles and monitoring.
+ const int y=b?524:448;
+ const float xMeter=b?566.f:580.f,xBypass=b?790.f:828.f,xMono=b?1030.f:1076.f;
+ for(const auto& led:std::array<std::pair<float,const char*>,3>{{{xMeter,"meterInput"},{xBypass,"bypass"},{xMono,"mono"}}}){
+  if(raw(led.second)>0.5f){
+   g.setColour(copper.withAlpha(.8f));g.fillEllipse(led.first-13,y-5.f,11.f,11.f);
+   g.setColour(ivory);g.fillEllipse(led.first-10,y-2.f,5.f,5.f);
+  }
+ }
+ if(page==Page::chain){
+  const std::array<std::pair<juce::Rectangle<float>,const char*>,5> bypasses{{
+   {{228,157,67,21},"colorBypass"},{{471,157,69,21},"eqBypass"},
+   {{720,157,64,21},"deEssBypass"},{{970,157,69,21},"compBypass"},
+   {{1227,157,68,21},"limiterBypass"}
+  }};
+  for(const auto& s:bypasses)if(raw(s.second)>.5f){
+    g.setColour(crimson.withAlpha(.85f));g.drawRoundedRectangle(s.first.reduced(1.f),3.f,2.f);
+  }
+ }
+}
+void BoomAudioProcessorEditor::renderBrowser(juce::Graphics& g){
+ // Redraw only changeable data. The frame, metallic hardware, shadows and
+ // photorealistic texture come directly from the user's source image.
+ const int rowTop=211,rowH=34,rowW=744,rowLeft=368;
+ g.setColour(juce::Colour::fromRGB(13,11,12));g.fillRect(rowLeft,rowTop,rowW,179);
+ g.setColour(copper.withAlpha(.65f));g.drawRect(rowLeft,rowTop,rowW,179,1);
+ for(int i=0;i<5;++i){
+  const int idx=firstVisible+i;const int y=rowTop+i*rowH;
+  if(idx>=static_cast<int>(rows.size()))break;
+  const bool selected=idx==selectedRow;
+  const auto r=rows[static_cast<size_t>(idx)];
+  g.setColour(selected?juce::Colour::fromRGB(122,18,41):juce::Colour::fromRGB(i%2?17:23,15,15));
+  g.fillRect(rowLeft+2,y+1,rowW-4,rowH-1);
+  if(selected){g.setColour(copper);g.drawRoundedRectangle(float(rowLeft+2),float(y+1),float(rowW-4),float(rowH-2),4.f,1.5f);}
   juce::String name,cat,style;
-  bool star=false;
-  if(entry.user){
-   name=proc.userPresetName(entry.index);
-   cat=english?"USER":"UTILISATEUR";style="—";
-  }else{
-   const auto p=boom::makePreset(entry.index);
+  if(r.user){name=proc.userPresetName(r.index);cat="Utilisateur";style="—";}
+  else{
+   const auto p=boom::makePreset(r.index);
    name=juce::String(p.name);
    cat=juce::String(boom::categories[static_cast<size_t>(p.category)]);
    style=juce::String(boom::styles()[static_cast<size_t>(p.style)].name);
-   star=proc.isFavorite(entry.index);
   }
-  const int starW=40;
-  const int nameW=juce::roundToInt((w-starW)*.46f);
-  const int catW=juce::roundToInt((w-starW)*.28f);
-  g.setColour(selected?ivory:ivory.withAlpha(.92f));g.setFont(font(13,selected));
-  g.drawFittedText((loaded?"●  ":"   ")+name,8,1,nameW-10,h-2,juce::Justification::centredLeft,1);
-  g.setColour(brass.withAlpha(.95f));g.setFont(font(11));
-  g.drawFittedText(cat,nameW,1,catW-8,h-2,juce::Justification::centredLeft,1);
-  g.drawFittedText(style,nameW+catW,1,w-starW-nameW-catW-6,h-2,juce::Justification::centredLeft,1);
-  g.setColour(star?ivory:brass.withAlpha(.6f));g.setFont(font(18));
-  g.drawText(entry.user?"◆":star?"★":"☆",w-starW,0,starW,h,juce::Justification::centred);
+  g.setColour(ivory);g.setFont(makeFont(15,selected));
+  g.drawFittedText(name,407,y+1,260,rowH-3,juce::Justification::centredLeft,1);
+  g.setFont(makeFont(14));
+  g.drawFittedText(cat,680,y+1,211,rowH-3,juce::Justification::centredLeft,1);
+  g.drawFittedText(style,896,y+1,173,rowH-3,juce::Justification::centredLeft,1);
+  g.setColour((!r.user&&proc.isFavorite(r.index))?gold:muted);g.setFont(makeFont(22));
+  g.drawText(r.user?"◆":(!r.user&&proc.isFavorite(r.index)?"★":"☆"),1068,y+1,40,rowH-3,juce::Justification::centred);
  }
- void listBoxItemClicked(int row,const juce::MouseEvent& event)override {
-  if(row<0||row>=getNumRows())return;
-  // The rightmost cell is an interactive favourite control for factory presets.
-  const auto r=shown[static_cast<size_t>(row)];
-  if(event.x>list.getWidth()-47 && !r.user){
-   proc.toggleFavorite(r.index);
-   refresh();selectRow(false,r.index);
+ // Active category and changing counts (the photo contains the fixed category names).
+ const int cy=136+category*22;
+ g.setColour(crimson.withAlpha(.40f));g.fillRoundedRectangle(39.f,float(cy),304.f,22.f,3.f);
+ g.setColour(copper.withAlpha(.9f));g.drawRoundedRectangle(39.f,float(cy),304.f,22.f,3.f,1.f);
+ const int userCount=proc.userPresetCount();
+ int favCount=0;for(int i=0;i<100;++i)if(proc.isFavorite(i))++favCount;
+ for(const auto& value:std::array<std::pair<int,int>,2>{{{361,favCount},{384,userCount}}}){
+  g.setColour(juce::Colour::fromRGB(54,14,22));g.fillRoundedRectangle(300.f,float(value.first),25.f,19.f,4.f);
+  g.setColour(gold);g.setFont(makeFont(12,true));
+  g.drawText(juce::String(value.second),302,value.first,22,19,juce::Justification::centred);
+ }
+ // Right panel: a real parameter preview, calculated from the selected preset.
+ g.setColour(juce::Colour::fromRGB(27,11,14));g.fillRect(1155,143,370,207);
+ if(selectedRow<0||selectedRow>=static_cast<int>(rows.size()))return;
+ const auto r=rows[static_cast<size_t>(selectedRow)];
+ juce::String name,cat,style,description;
+ boom::Parameters params;
+ if(!r.user){
+  const auto p=boom::makePreset(r.index);name=juce::String(p.name);params=p.params;
+  cat=juce::String(boom::categories[static_cast<size_t>(p.category)]);
+  style=juce::String(boom::styles()[static_cast<size_t>(p.style)].name);
+  const juce::String phrases[]={
+   "Master musical, équilibré et dynamique pour une diffusion moderne.",
+   "Guitares précises, dynamique préservée et présence naturelle.",
+   "Impact et graves contrôlés avec une présence incisive.",
+   "Basses généreuses, voix distinctes et transitoires solides.",
+   "Puissance électronique, bas du spectre net et impact maîtrisé.",
+   "Traitement subtil préservant le caractère des instruments.",
+   "Profondeur, nuances et ampleur pour les bandes-son.",
+   "Chaleur analogique et texture harmonique vintage.",
+   "Définition adaptée aux usages et plateformes modernes.",
+   "Réglage ciblé pour corriger et affiner le master."};
+  description=phrases[juce::jlimit(0,9,p.category)];
+ }else{
+  name=proc.userPresetName(r.index);cat="Utilisateur";style="Preset personnalisé";
+  description="Réglages complets enregistrés dans le projet DAW.";
+ }
+ g.setColour(gold);g.setFont(makeFont(25,true));
+ g.drawFittedText(name,1166,145,316,34,juce::Justification::centredLeft,1);
+ g.setColour(ivory);g.setFont(makeFont(13));
+ g.drawFittedText(cat+"  |  "+style,1169,181,319,23,juce::Justification::centredLeft,1);
+ g.drawFittedText(description,1168,208,335,44,juce::Justification::topLeft,2);
+ if(!r.user){
+  const juce::String labels[]={"DRIVE  "+juce::String(params.inputDb,1)+" dB",
+   "PUSH  "+juce::String(params.push,0)+" %",
+   "CIRCUIT  "+juce::String(params.color==0?"CLEAN":params.color==1?"TUBE":"TAPE"),
+   "GLUE  "+juce::String(params.compRatio,2)+" : 1",
+   "PLAFOND  "+juce::String(params.ceilingDb,1)+" dBFS",
+   "STYLE  "+style};
+  g.setColour(muted);g.drawLine(1168.f,252.f,1512.f,252.f,1.f);
+  g.setColour(gold);g.setFont(makeFont(12,true));
+  for(int i=0;i<6;++i){const int x=1168+(i%2)*174,y=255+(i/2)*28;
+   g.drawFittedText(labels[i],x,y,170,24,juce::Justification::centredLeft,1);
   }
- }
- void listBoxItemDoubleClicked(int row,const juce::MouseEvent&)override {
-  if(row>=0&&row<getNumRows()){list.selectRow(row);loadSelected();}
- }
- void paint(juce::Graphics& g)override {
-  auto b=getLocalBounds().toFloat().reduced(1);
-  g.setColour(juce::Colours::black.withAlpha(.8f));g.fillRoundedRectangle(b.translated(2.f,3.f),8.f);
-  juce::ColourGradient panel(juce::Colour::fromRGB(53,17,22),b.getTopLeft(),
-                             juce::Colour::fromRGB(19,11,13),b.getBottomRight(),false);
-  g.setGradientFill(panel);g.fillRoundedRectangle(b,8.f);
-  g.setColour(copper);g.drawRoundedRectangle(b.reduced(1.f),8.f,1.5f);
-  juce::ColourGradient header(juce::Colour::fromRGB(104,36,41),0.f,0.f,
-                              juce::Colour::fromRGB(30,15,18),0.f,47.f,false);
-  g.setGradientFill(header);g.fillRoundedRectangle(b.removeFromTop(47.f),7.f);
-  g.setColour(copper.withAlpha(.75f));g.drawHorizontalLine(47,8.f,float(getWidth()-8));
-  g.setColour(ivory);g.setFont(font(16,true));
-  g.drawText(english?"FACTORY & USER PRESETS":"PRESETS D'USINE & UTILISATEUR",
-             20,9,getWidth()-300,30,juce::Justification::centredLeft);
-  g.setColour(brass);g.setFont(font(11,true));
-  g.drawText("100 PRESETS  ·  40 STYLES",getWidth()-310,12,240,23,juce::Justification::centredRight);
-  const auto a=areas();
-  auto frame=[&](juce::Rectangle<int> r){
-   g.setColour(juce::Colour::fromRGB(19,12,14));g.fillRoundedRectangle(r.toFloat(),4.f);
-   g.setColour(copper.withAlpha(.52f));g.drawRoundedRectangle(r.toFloat().reduced(.5f),4.f,1.f);
-  };
-  frame({a.sidebarX,53,a.sidebarW,getHeight()-110});
-  frame({a.mainX,89,a.mainW,getHeight()-151});
-  frame({a.detailX,53,a.detailW,getHeight()-110});
-  g.setColour(brass);g.setFont(font(10,true));
-  g.drawText(english?"CATEGORIES":"CATÉGORIES",a.sidebarX+12,61,a.sidebarW-24,22,juce::Justification::centredLeft);
-  g.drawText(english?"PRESET NAME":"NOM DU PRESET",a.mainX+11,93,a.mainW*46/100-10,20,juce::Justification::centredLeft);
-  g.drawText(english?"CATEGORY":"CATÉGORIE",a.mainX+a.mainW*46/100,93,a.mainW*28/100,20,juce::Justification::centredLeft);
-  g.drawText("STYLE",a.mainX+a.mainW*74/100,93,a.mainW*20/100,20,juce::Justification::centredLeft);
-  g.drawText("☆",a.mainX+a.mainW-35,93,25,20,juce::Justification::centred);
-  paintDetails(g,a);
- }
- void resized()override {
-  auto a=areas();
-  closeButton.setBounds(getWidth()-45,8,30,30);
-  categoriesList.setBounds(a.sidebarX+7,87,a.sidebarW-14,getHeight()-154);
-  search.setBounds(a.mainX,55,a.mainW-189,30);
-  styleFilter.setBounds(a.mainX+a.mainW-183,55,183,30);
-  list.setBounds(a.mainX+2,114,a.mainW-4,getHeight()-175);
-  userName.setBounds(a.detailX+12,getHeight()-84,a.detailW-24,26);
-  const int y=getHeight()-53, spacing=6,usable=a.mainW-4*spacing;
-  const int prevW=juce::roundToInt(usable*.14f);
-  const int nextW=juce::roundToInt(usable*.14f);
-  const int favW=juce::roundToInt(usable*.19f);
-  const int saveW=juce::roundToInt(usable*.26f);
-  previous.setBounds(a.mainX,y,prevW,29);
-  next.setBounds(previous.getRight()+spacing,y,nextW,29);
-  favourite.setBounds(next.getRight()+spacing,y,favW,29);
-  saveUser.setBounds(favourite.getRight()+spacing,y,saveW,29);
-  userActions.setBounds(saveUser.getRight()+spacing,y,a.mainX+a.mainW-saveUser.getRight()-spacing,29);
-  load.setBounds(a.detailX+12,y,a.detailW-24,30);
-  status.setBounds(18,getHeight()-22,getWidth()-36,19);
- }
-private:
- struct Areas {
-  int sidebarX,sidebarW,mainX,mainW,detailX,detailW;
- };
- Areas areas()const{
-  const int pad=14,sidebar=205,detail=260,gap=12;
-  const int mainX=pad+sidebar+gap,mainW=getWidth()-2*pad-sidebar-detail-2*gap;
-  return {pad,sidebar,mainX,mainW,mainX+mainW+gap,detail};
- }
- BoomAudioProcessor& proc;
- CategoryModel categoryModel;
- juce::ListBox categoriesList,list;
- juce::TextEditor search,userName;
- juce::ComboBox styleFilter;
- juce::TextButton previous,next,favourite,saveUser,userActions,load;
- juce::Label status;
- std::unique_ptr<juce::FileChooser> fileChooser;
- std::vector<Row> shown;
- bool english=false,deleteArmed=false;
- int deleteIndex=-1;
- Row getSelected()const {
-  const int r=list.getSelectedRow();
-  return r>=0&&r<static_cast<int>(shown.size())?shown[static_cast<size_t>(r)]:Row{};
- }
- void selectRow(bool user,int index){
-  for(int i=0;i<static_cast<int>(shown.size());++i){
-   auto row=shown[static_cast<size_t>(i)];
-   if(row.user==user&&row.index==index){list.selectRow(i);return;}
-  }
- }
- void setStatus(const juce::String& text){
-  status.setText(text,juce::dontSendNotification);
- }
- void refresh(){
-  const auto old=getSelected();
-  shown.clear();
-  const int cat=categoriesList.getSelectedRow();
-  const int style=styleFilter.getSelectedId();
-  const auto query=search.getText().trim();
-  if(cat!=12){
-   for(int i=0;i<100;++i){
-    const auto p=boom::makePreset(i);
-    if(cat>=1&&cat<=10&&p.category!=cat-1)continue;
-    if(cat==11&&!proc.isFavorite(i))continue;
-    if(style>1&&p.style!=style-2)continue;
-    if(!juce::String(p.name).containsIgnoreCase(query)
-        && !juce::String(boom::styles()[static_cast<size_t>(p.style)].name).containsIgnoreCase(query)
-        && !juce::String(boom::categories[static_cast<size_t>(p.category)]).containsIgnoreCase(query))continue;
-    shown.push_back({false,i,true});
-   }
-  }
-  if((cat==0||cat==12)&&style<=1){
-   for(int i=0;i<proc.userPresetCount();++i){
-    if(proc.userPresetName(i).containsIgnoreCase(query))shown.push_back({true,i,true});
-   }
-  }
-  list.updateContent();
-  list.deselectAllRows();
-  if(old.valid)selectRow(old.user,old.index);
-  if(list.getSelectedRow()<0&&!shown.empty())list.selectRow(0);
-  categoriesList.repaint();
-  repaint();
- }
- void paintCategoryItem(int row,juce::Graphics& g,int w,int h,bool selected){
-  if(row<0||row>=13)return;
-  juce::String name;
-  int count=0;
-  if(row==0){name=english?"ALL PRESETS":"TOUS LES PRESETS";count=100+proc.userPresetCount();}
-  else if(row<=10){name=juce::String(boom::categories[static_cast<size_t>(row-1)]);count=10;}
-  else if(row==11){
-   name=english?"★ Favorites":"★ Favoris";
-   for(int i=0;i<100;++i)if(proc.isFavorite(i))++count;
-  }else{name=english?"◆ User presets":"◆ Mes presets";count=proc.userPresetCount();}
-  g.setColour(selected?juce::Colour::fromRGB(99,26,37):deep.withAlpha(row%2?0.78f:.95f));
-  g.fillRect(0,0,w,h);
-  if(selected){g.setColour(copper);g.fillRect(0,0,3,h);}
-  g.setColour(selected?ivory:brass);g.setFont(font(11,selected));
-  g.drawFittedText(name,8,0,w-42,h,juce::Justification::centredLeft,1);
-  g.setColour(selected?ivory:brass.withAlpha(.65f));g.setFont(font(10));
-  g.drawText(juce::String(count),w-38,0,31,h,juce::Justification::centredRight);
- }
- void paintDetails(juce::Graphics& g,const Areas& a){
-  const auto r=getSelected();
-  const int x=a.detailX+14,y=62,w=a.detailW-28;
-  const bool compact=getHeight()<280;
-  g.setColour(brass);g.setFont(font(11,true));
-  g.drawText(english?"MASTERING PROFILE":"PROFIL DE MASTERING",x,y,w,17,juce::Justification::centredLeft);
-  if(!r.valid){
-   g.setColour(ivory.withAlpha(.8f));g.setFont(font(compact?11.f:13.f));
-   g.drawFittedText(english?"Choose a preset to preview its settings."
-                :"Sélectionnez un preset pour découvrir ses réglages.",
-                x,y+29,w,compact?42:62,juce::Justification::topLeft,3);
-   return;
-  }
-  juce::String title,sub;
-  if(r.user){
-   title=proc.userPresetName(r.index);
-   sub=english?"User preset · saved in DAW project":"Preset utilisateur · enregistré dans le projet DAW";
-   if(compact){
-    g.setColour(ivory);g.setFont(font(14,true));
-    g.drawFittedText(title,x,y+21,w,23,juce::Justification::centredLeft,1);
-    g.setColour(brass);g.setFont(font(10));
-    g.drawFittedText(sub,x,y+45,w,40,juce::Justification::topLeft,2);
-    return;
-   }
-   g.setColour(ivory);g.setFont(font(17,true));
-   g.drawFittedText(title,x,y+22,w,26,juce::Justification::centredLeft,1);
-   g.setColour(brass);g.setFont(font(11));g.drawFittedText(sub,x,y+51,w,37,juce::Justification::topLeft,2);
-   g.drawFittedText(english?"Load, rename, export or delete via USER LIBRARY."
-                :"Charger, renommer, exporter ou supprimer via UTILISATEUR.",
-                x,y+94,w,48,juce::Justification::topLeft,3);
-   return;
-  }
-  const auto p=boom::makePreset(r.index);
-  title=juce::String(p.name);
-  sub=juce::String(boom::categories[static_cast<size_t>(p.category)])
-      +"  |  "+juce::String(boom::styles()[static_cast<size_t>(p.style)].name);
-  if(compact){
-   g.setColour(ivory);g.setFont(font(14,true));
-   g.drawFittedText(title,x,y+21,w,23,juce::Justification::centredLeft,1);
-   g.setColour(brass);g.setFont(font(10));
-   g.drawFittedText(sub,x,y+45,w,20,juce::Justification::centredLeft,1);
-   g.setColour(ivory);g.setFont(font(10));
-   g.drawFittedText("PUSH  "+juce::String(p.params.push,0)+" %    "+
-      (p.params.color==0?"CLEAN":p.params.color==1?"TUBE":"TAPE"),
-      x,y+67,w,19,juce::Justification::centredLeft,1);
-   return;
-  }
-  g.setColour(ivory);g.setFont(font(17,true));
-  g.drawFittedText(title,x,y+22,w,27,juce::Justification::centredLeft,1);
-  g.setColour(brass);g.setFont(font(10));
-  g.drawFittedText(sub,x,y+51,w,22,juce::Justification::centredLeft,1);
-  g.setColour(copper.withAlpha(.55f));g.drawLine(float(x),float(y+78),float(x+w),float(y+78),1.f);
-  const auto colorName=p.params.color==0?"CLEAN":p.params.color==1?"TUBE":"TAPE";
-  const juce::String details[]={
-   (english?"INPUT  ":"ENTRÉE  ")+juce::String(p.params.inputDb,1)+" dB"
-       +"    PUSH  "+juce::String(p.params.push,0)+" %",
-   (english?"COLOR  ":"COULEUR  ")+juce::String(colorName)
-       +"    GLUE  "+juce::String(p.params.compRatio,2)+":1",
-   (english?"CEILING  ":"PLAFOND  ")+juce::String(p.params.ceilingDb,1)+" dBFS"
-  };
-  for(int i=0;i<3;++i){
-   const int yy=y+80+i*20;
-   g.setColour(ivory.withAlpha(i==2?.9f:1.f));
-   g.setFont(font(11,i==2));
-   g.drawFittedText(details[i],x,yy,w,20,juce::Justification::centredLeft,1);
-  }
- }
- void move(int offset){
-  if(shown.empty())return;
-  list.selectRow(juce::jlimit(0,getNumRows()-1,juce::jmax(0,list.getSelectedRow())+offset));
- }
- void loadSelected(){
-  const auto r=getSelected();
-  if(!r.valid){setStatus(english?"No preset selected.":"Aucun preset sélectionné.");return;}
-  const bool ok=r.user?proc.loadUserPreset(r.index):(proc.loadFactoryPreset(r.index),true);
-  setStatus(ok?(english?"Preset loaded — audio parameters updated.":"Preset chargé — tous les paramètres audio sont actualisés.")
-              :(english?"Unable to load preset.":"Chargement impossible."));
-  repaint();
- }
- void save(){
-  const int idx=proc.saveUserPreset(userName.getText());
-  setStatus(idx>=0?(english?"Saved to DAW project. Export .boom to share.":"Enregistré dans le projet DAW. Exportez le .boom pour le partager.")
-     :(english?"Enter a name (up to 512 user presets).":"Saisissez un nom (512 presets utilisateur maximum)."));
-  if(idx>=0){search.clear();styleFilter.setSelectedId(1,juce::dontSendNotification);
-   categoriesList.selectRow(12);refresh();selectRow(true,idx);}
- }
- void openActions(){
-  juce::PopupMenu menu;
-  menu.addItem(1,english?"Save current settings":"Enregistrer le réglage actuel");
-  menu.addItem(2,english?"Rename selected user preset":"Renommer le preset utilisateur");
-  menu.addItem(3,english?"Delete selected user preset":"Supprimer le preset utilisateur");
-  menu.addSeparator();
-  menu.addItem(4,english?"Import .boom preset":"Importer un preset .boom");
-  menu.addItem(5,english?"Export selected .boom preset":"Exporter le preset .boom");
-  juce::Component::SafePointer<BrowserPanel> safe(this);
-  menu.showMenuAsync(juce::PopupMenu::Options().withTargetComponent(userActions),
-      [safe](int action){if(safe!=nullptr)safe->handleAction(action);});
- }
- void handleAction(int action){
-  if(action==1){save();return;}
-  const auto r=getSelected();
-  if(action==4){openImport();return;}
-  if(!r.valid||!r.user){
-   setStatus(english?"Select a user preset first.":"Sélectionnez d'abord un preset utilisateur.");return;
-  }
-  if(action==2){
-   const bool ok=proc.renameUserPreset(r.index,userName.getText());
-   setStatus(ok?(english?"Preset renamed.":"Preset renommé."):(english?"Name required.":"Nom requis."));
-   refresh();return;
-  }
-  if(action==3){
-   if(!deleteArmed||deleteIndex!=r.index){
-    deleteArmed=true;deleteIndex=r.index;
-    setStatus(english?"Select Delete a second time to confirm.":"Sélectionnez Supprimer une deuxième fois pour confirmer.");return;
-   }
-   const bool ok=proc.deleteUserPreset(r.index);
-   deleteArmed=false;deleteIndex=-1;
-   setStatus(ok?(english?"Preset deleted.":"Preset supprimé."):(english?"Unable to delete.":"Suppression impossible."));
-   refresh();return;
-  }
-  if(action==5)openExport();
- }
- void openImport(){
-  fileChooser=std::make_unique<juce::FileChooser>(english?"Import BOOM preset":"Importer un preset BOOM",juce::File{},"*.boom");
-  juce::Component::SafePointer<BrowserPanel> safe(this);
-  fileChooser->launchAsync(juce::FileBrowserComponent::openMode|juce::FileBrowserComponent::canSelectFiles,
-   [safe](const juce::FileChooser& chooser){
-    if(safe==nullptr)return;
-    auto file=chooser.getResult();if(file==juce::File{})return;
-    const bool ok=safe->proc.importUserPreset(file);
-    safe->setStatus(ok?(safe->english?"Preset imported.":"Preset importé."):(safe->english?"Invalid file or full library.":"Fichier invalide ou bibliothèque pleine."));
-    if(ok){safe->search.clear();safe->styleFilter.setSelectedId(1,juce::dontSendNotification);
-      safe->categoriesList.selectRow(12);safe->refresh();safe->selectRow(true,safe->proc.userPresetCount()-1);}
-   });
- }
- void openExport(){
-  const auto r=getSelected();if(!r.valid||!r.user)return;
-  const auto suggested=juce::File::getSpecialLocation(juce::File::userDocumentsDirectory)
-    .getChildFile(juce::File::createLegalFileName(proc.userPresetName(r.index))+".boom");
-  fileChooser=std::make_unique<juce::FileChooser>(english?"Export BOOM preset":"Exporter un preset BOOM",suggested,"*.boom");
-  juce::Component::SafePointer<BrowserPanel> safe(this);
-  const int index=r.index;
-  fileChooser->launchAsync(juce::FileBrowserComponent::saveMode|juce::FileBrowserComponent::canSelectFiles|
-    juce::FileBrowserComponent::warnAboutOverwriting,
-    [safe,index](const juce::FileChooser& chooser){
-     if(safe==nullptr)return;
-     auto file=chooser.getResult();if(file==juce::File{})return;
-     file=file.withFileExtension(".boom");
-     const bool ok=safe->proc.exportUserPreset(index,file);
-     safe->setStatus(ok?(safe->english?"Preset exported.":"Preset exporté."):(safe->english?"Export failed.":"Échec de l'export."));
-    });
- }
-};
-
-class ModulePanel final:public juce::Component{
-public:
- ModulePanel(juce::AudioProcessorValueTreeState& state,
-  std::initializer_list<std::pair<const char*,const char*>> configs,
-  const char* bypassId=nullptr,const char* modeId=nullptr,bool stereoLink=false){
-  for(const auto& c:configs){
-   auto slider=std::make_unique<juce::Slider>();
-   slider->setSliderStyle(juce::Slider::RotaryHorizontalVerticalDrag);
-   slider->setTextBoxStyle(juce::Slider::TextBoxBelow,false,105,23);
-   slider->setColour(juce::Slider::textBoxTextColourId,ivory);
-   slider->setColour(juce::Slider::textBoxOutlineColourId,juce::Colours::transparentBlack);
-   addAndMakeVisible(*slider);
-   auto label=std::make_unique<juce::Label>();label->setText(c.second,juce::dontSendNotification);
-   label->setJustificationType(juce::Justification::centred);label->setColour(juce::Label::textColourId,ivory);
-   addAndMakeVisible(*label);
-   attachments.emplace_back(std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(state,c.first,*slider));
-   sliders.push_back(std::move(slider));labels.push_back(std::move(label));
-  }
-  if(bypassId!=nullptr){
-   bypass=std::make_unique<juce::ToggleButton>("BYPASS MODULE");
-   addAndMakeVisible(*bypass);
-   bypassAttachment=std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(state,bypassId,*bypass);
-  }
-  if(modeId!=nullptr){
-   mode=std::make_unique<juce::ComboBox>();
-   const bool analog=juce::String(modeId)=="color";
-   const char* const colors[]={"CLEAN","TUBE","TAPE"};
-   const char* const limiter[]={"TRANSPARENT","PUNCH","LOUD"};
-   for(int i=0;i<3;++i)mode->addItem(analog?colors[i]:limiter[i],i+1);
-   addAndMakeVisible(*mode);
-   modeAttachment=std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(state,modeId,*mode);
-  }
-  if(stereoLink){
-   link=std::make_unique<juce::ToggleButton>("STEREO LINK");
-   addAndMakeVisible(*link);
-   linkAttachment=std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(state,"compStereoLink",*link);
-  }
- }
- void resized()override{
-  auto b=getLocalBounds().reduced(12);
-  auto head=b.removeFromTop(43);
-  if(mode)mode->setBounds(head.removeFromLeft(220).reduced(0,5));
-  if(link)link->setBounds(head.removeFromLeft(154));
-  if(bypass)bypass->setBounds(head.removeFromRight(170));
-  const auto n=static_cast<int>(sliders.size());if(n==0)return;
-  const int cellW=b.getWidth()/n;
-  for(int i=0;i<n;++i){
-   auto col=b.removeFromLeft(i==n-1?b.getWidth():cellW);
-   labels[static_cast<std::size_t>(i)]->setBounds(col.removeFromTop(32));
-   sliders[static_cast<std::size_t>(i)]->setBounds(col.reduced(5,3));
-  }
- }
-private:
- std::vector<std::unique_ptr<juce::Slider>> sliders;
- std::vector<std::unique_ptr<juce::Label>> labels;
- std::vector<std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment>> attachments;
- std::unique_ptr<juce::ToggleButton> bypass,link;
- std::unique_ptr<juce::ComboBox> mode;
- std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> bypassAttachment,linkAttachment;
- std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> modeAttachment;
-};
-
-class ChainPanel final:public OverlayBase{
-public:
- explicit ChainPanel(juce::AudioProcessorValueTreeState& state,std::function<void()> close):
- OverlayBase("BOOM  |  MASTERING CHAIN",std::move(close)),tabs(juce::TabbedButtonBar::TabsAtTop){
-  addAndMakeVisible(tabs);tabs.setTabBarDepth(40);
-  tabs.addTab("ANALOG COLOR",charcoal,new ModulePanel(state,{{"colorDrive","DRIVE"},{"colorMix","MIX"},{"colorOut","OUTPUT COMP"}},"colorBypass","color"),true);
-  tabs.addTab("MASTER EQ",charcoal,new ModulePanel(state,{{"eq60","60 Hz"},{"eq120","120 Hz"},{"eq3k","3 kHz"},{"eq6k","6 kHz"},{"eq10k","10 kHz"}},"eqBypass"),true);
-  tabs.addTab("DE-ESSER",charcoal,new ModulePanel(state,{{"deFreq","FREQUENCY"},{"deTh","THRESHOLD"},{"deAmt","AMOUNT"},{"deAtt","ATTACK"},{"deRel","RELEASE"}},"deEssBypass"),true);
-  tabs.addTab("GLUE COMP",charcoal,new ModulePanel(state,{{"compTh","THRESHOLD"},{"compRatio","RATIO"},{"compAttack","ATTACK"},{"compRelease","RELEASE"},{"compMakeup","MAKEUP"},{"compMix","MIX"}},"compBypass",nullptr,true),true);
-  tabs.addTab("PEAK LIMIT",charcoal,new ModulePanel(state,{{"limitTh","THRESHOLD"},{"ceiling","CEILING"},{"limitRelease","RELEASE"}},"limiterBypass","limitMode"),true);
-  tabs.addTab("OUTPUT",charcoal,new ModulePanel(state,{{"inputLTrim","INPUT L"},{"inputRTrim","INPUT R"},{"outDb","OUTPUT TRIM"}}),true);
- }
- void resized() override{OverlayBase::resized();tabs.setBounds(15,78,getWidth()-30,getHeight()-94);}
-private: juce::TabbedComponent tabs;
-};
-
-class MeterPanel final:public OverlayBase,private juce::Timer{
-public:
- explicit MeterPanel(BoomAudioProcessor& p,std::function<void()> close):
- OverlayBase("BOOM  |  AUDIO METERS",std::move(close)),proc(p){
-  addAndMakeVisible(reset);reset.setButtonText("RESET LUFS / LRA");
-  reset.onClick=[this]{proc.requestLoudnessReset();};
-  startTimerHz(20);
- }
- ~MeterPanel()override{stopTimer();}
- void timerCallback()override{repaint();}
- void resized() override{OverlayBase::resized();reset.setBounds(25,getHeight()-47,172,30);}
- void paint(juce::Graphics& g)override{
-  OverlayBase::paint(g);const auto m=proc.lastMeters();
-  struct Reading {const char* label;float value;const char* unit;bool useDb;};
-  const std::array<Reading,16> data{{
-   {"INPUT L",m.inputPeakL,"dBFS",true},{"INPUT R",m.inputPeakR,"dBFS",true},
-   {"OUTPUT L",m.outputPeakL,"dBFS",true},{"OUTPUT R",m.outputPeakR,"dBFS",true},
-   {"RMS L",m.outputRmsL,"dBFS",true},{"RMS R",m.outputRmsR,"dBFS",true},
-   {"VU L",m.vuL,"dBFS",true},{"VU R",m.vuR,"dBFS",true},
-   {"COMP GR",m.compressorGainReductionDb,"dB",false},{"LIMIT GR",m.limiterGainReductionDb,"dB",false},
-   {"MOMENTARY",m.momentaryLufs,"LUFS",false},{"SHORT-TERM",m.shortTermLufs,"LUFS",false},
-   {"INTEGRATED",m.integratedLufs,"LUFS",false},{"LOUDNESS RANGE",m.lra,"LU",false},
-   {"TRUE-PEAK EST.",m.truePeak,"dBTP*",true},{"CORRELATION",m.correlation,"",false}
-  }};
-  const int gap=9,columns=4,w=(getWidth()-50-(columns-1)*gap)/columns;
-  for(std::size_t i=0;i<data.size();++i){
-   const int x=25+int(i%4)*(w+gap),y=80+int(i/4)*72;
-   g.setColour(juce::Colour::fromRGB(46,41,35));g.fillRoundedRectangle(float(x),float(y),float(w),64.f,5.f);
-   g.setColour(brass);g.setFont(font(12,true));g.drawText(data[i].label,x+10,y+5,w-20,18,juce::Justification::centredLeft);
-   const float v=data[i].useDb?boom::gainToDb(data[i].value):data[i].value;
-   juce::String display=(v<=-99.9f&&juce::String(data[i].unit)=="LUFS")?"—":juce::String(v,1);
-   g.setColour(ivory);g.setFont(font(20,true));g.drawText(display+" "+data[i].unit,x+8,y+28,w-16,26,juce::Justification::centredRight);
-  }
-  g.setColour(brass);g.setFont(font(11));
-  g.drawText("* dBTP estimé : interpolation 4×, conformité non certifiée.",215,getHeight()-45,getWidth()-242,29,juce::Justification::centredRight);
- }
-private:
- BoomAudioProcessor& proc;juce::TextButton reset;
-};
-
-class HelpPanel final:public OverlayBase{
-public:
- explicit HelpPanel(std::function<void()> close):OverlayBase("BOOM  |  GUIDE RAPIDE",std::move(close)){}
- void paint(juce::Graphics& g)override{
-  OverlayBase::paint(g);g.setColour(ivory);g.setFont(font(18));
-  g.drawFittedText("1. Sélectionnez un STYLE.\n2. Choisissez un PRESET.\n3. Ajustez INPUT DRIVE et les 5 bandes EQ.\n4. Montez PUSH pour un mastering plus dense.\n5. Comparez A / B à niveau similaire.\n\nATTENTION : le mode MONO modifie l'écoute du plugin tant qu'il est actif.\nCe prototype doit être validé avant un usage commercial.",30,94,getWidth()-60,getHeight()-130,juce::Justification::topLeft,16);
- }
-};
-}
-
-HardwareLook::HardwareLook(){
- setColour(juce::ComboBox::textColourId,ivory);
- setColour(juce::ComboBox::backgroundColourId,charcoal);
- setColour(juce::ComboBox::outlineColourId,brass);
- setColour(juce::PopupMenu::backgroundColourId,charcoal);
- setColour(juce::PopupMenu::textColourId,ivory);
- setColour(juce::TextButton::textColourOffId,ivory);
- setColour(juce::TextButton::buttonColourId,charcoal);
- setColour(juce::Label::textColourId,ivory);
- setColour(juce::Slider::textBoxTextColourId,ivory);
- setColour(juce::Slider::textBoxOutlineColourId,juce::Colours::transparentBlack);
-}
-void HardwareLook::drawRotarySlider(juce::Graphics& g,int x,int y,int width,int height,float position,
- float start,float end,juce::Slider&){
- auto b=juce::Rectangle<float>(float(x),float(y),float(width),float(height));
- float radius=std::min(b.getWidth(),b.getHeight())*0.37f;
- auto centre=b.getCentre();const float angle=start+position*(end-start);
- g.setColour(juce::Colours::black.withAlpha(.6f));g.fillEllipse(centre.x-radius+3,centre.y-radius+6,radius*2,radius*2);
- juce::ColourGradient trim(brass.brighter(.35f),centre.x-radius,centre.y-radius,
-    juce::Colour::fromRGB(57,43,31),centre.x+radius,centre.y+radius,false);
- g.setGradientFill(trim);g.fillEllipse(centre.x-radius,centre.y-radius,radius*2,radius*2);
- g.setColour(juce::Colours::black.withAlpha(.7f));g.drawEllipse(centre.x-radius,centre.y-radius,radius*2,radius*2,3.5f);
- radius*=0.84f;
- juce::ColourGradient metal(juce::Colour::fromRGB(185,172,145),centre.x-radius,centre.y-radius,
-  juce::Colour::fromRGB(65,57,47),centre.x+radius,centre.y+radius,true);
- metal.addColour(.48,juce::Colour::fromRGB(98,87,72));metal.addColour(.68,juce::Colour::fromRGB(49,43,37));
- g.setGradientFill(metal);g.fillEllipse(centre.x-radius,centre.y-radius,radius*2,radius*2);
- g.setColour(juce::Colours::white.withAlpha(.14f));g.drawEllipse(centre.x-radius+2,centre.y-radius+2,radius*2-4,radius*2-4,2.f);
- const float tip=radius*.83f,tail=radius*.22f;
- auto direction=juce::Point<float>(std::sin(angle),-std::cos(angle));
- auto perpendicular=juce::Point<float>(direction.y,-direction.x);
- juce::Path pointer;pointer.startNewSubPath(centre+direction*tip);
- pointer.lineTo(centre+direction*tail+perpendicular*2.7f);
- pointer.lineTo(centre+direction*tail-perpendicular*2.7f);pointer.closeSubPath();
- g.setColour(amber);g.fillPath(pointer);
- const float tickRadius=radius*1.24f;
- for(int i=0;i<=10;++i){float a=start+(end-start)*i/10.0f;
-  auto from=centre+juce::Point<float>(std::sin(a),-std::cos(a))*tickRadius;
-  auto to=centre+juce::Point<float>(std::sin(a),-std::cos(a))*(tickRadius+(i%5==0?10.f:5.f));
-  g.setColour((i<=int(position*10+.2f))?ivory.withAlpha(.82f):brass.withAlpha(.4f));
-  g.drawLine(from.x,from.y,to.x,to.y,i%5==0?2.f:1.f);
  }
 }
-void HardwareLook::drawButtonBackground(juce::Graphics& g,juce::Button& b,const juce::Colour&,bool highlighted,bool down){
- auto r=b.getLocalBounds().toFloat().reduced(1);
- juce::ColourGradient fill(down?brass.darker():juce::Colour::fromRGB(70,60,48),r.getX(),r.getY(),
-  down?charcoal:deep,r.getRight(),r.getBottom(),false);
- g.setGradientFill(fill);g.fillRoundedRectangle(r,5);
- g.setColour(b.getToggleState()?amber:(highlighted?ivory:brass.withAlpha(.6f)));
- g.drawRoundedRectangle(r,5,b.getToggleState()?2.f:1.f);
-}
-void HardwareLook::drawComboBox(juce::Graphics& g,int w,int h,bool,int,int,int,int,juce::ComboBox&){
- juce::ColourGradient fill(juce::Colour::fromRGB(58,49,40),0,0,deep,0,float(h),false);
- g.setGradientFill(fill);g.fillRoundedRectangle(0,0,float(w),float(h),5);
- g.setColour(brass);g.drawRoundedRectangle(0,0,float(w),float(h),5,1);
- juce::Path p;p.startNewSubPath(float(w-24),float(h*.42));p.lineTo(float(w-16),float(h*.62));p.lineTo(float(w-8),float(h*.42));
- g.strokePath(p,juce::PathStrokeType(1.7f));
-}
-juce::Font HardwareLook::getComboBoxFont(juce::ComboBox&){return font(15,true);}
-
-void AnalogVu::setLevel(float linear){
- const float zeroRef=boom::dbToGain(-18.f);
- target=juce::jlimit(-20.f,3.f,boom::gainToDb(linear/zeroRef));
- current+=0.24f*(target-current);repaint();
-}
-void AnalogVu::paint(juce::Graphics& g){
- auto r=getLocalBounds().toFloat().reduced(2);
- g.setColour(juce::Colours::black.withAlpha(.6f));g.fillRoundedRectangle(r.translated(2,4),8);
- juce::ColourGradient metal(brass.brighter(.25f),r.getTopLeft(),brass.darker(.75f),r.getBottomRight(),false);
- g.setGradientFill(metal);g.fillRoundedRectangle(r,8);
- auto face=r.reduced(8,9);
- g.setColour(ivory);g.fillRoundedRectangle(face,4);
- juce::ColourGradient shade(juce::Colours::white.withAlpha(.15f),face.getTopLeft(),juce::Colour::fromRGB(139,112,79).withAlpha(.29f),face.getBottomRight(),false);
- g.setGradientFill(shade);g.fillRoundedRectangle(face,4);
- const auto center=juce::Point<float>(face.getCentreX(),face.getBottom()-10);
- const float rad=face.getWidth()*.42f;
- for(int i=0;i<=10;++i){const float v=-20.f+i*2.3f;
-  const float a=juce::jmap(v,-20.f,3.f,-1.11f,1.11f);
-  const auto origin=center+juce::Point<float>(std::sin(a),-std::cos(a))*rad*.70f;
-  const auto end=center+juce::Point<float>(std::sin(a),-std::cos(a))*rad*.83f;
-  g.setColour(i>=9?juce::Colours::darkred:charcoal);g.drawLine(origin.x,origin.y,end.x,end.y,i%2==0?1.6f:.9f);
- }
- g.setColour(charcoal);g.setFont(font(11,true));
- g.drawFittedText("-20       -10          0   +3",face.toNearestInt().reduced(8).withTrimmedTop(int(face.getHeight()*.40f)).withHeight(20),juce::Justification::centred,1);
- g.setFont(font(18,true));g.drawText("VU",face.toNearestInt().withTrimmedTop(int(face.getHeight()*.42f)).withHeight(24),juce::Justification::centred);
- g.setFont(font(11,true));g.drawText(name,face.toNearestInt().removeFromTop(23),juce::Justification::centred);
- const float a=juce::jmap(current,-20.f,3.f,-1.11f,1.11f);
- const auto tip=center+juce::Point<float>(std::sin(a),-std::cos(a))*rad*.88f;
- g.setColour(juce::Colours::darkred);g.drawLine(center.x,center.y,tip.x,tip.y,2.1f);
- g.setColour(charcoal);g.fillEllipse(center.x-5,center.y-5,10,10);
-}
-
-BoomAudioProcessorEditor::BoomAudioProcessorEditor(BoomAudioProcessor& p):AudioProcessorEditor(&p),processor(p){
- setLookAndFeel(&look);
- const char* ids[]={"inputDb","eq60","eq120","eq3k","eq6k","eq10k","push"};
- const char* titles[]={"INPUT DRIVE","60 Hz","120 Hz","3 kHz","6 kHz","10 kHz","PUSH"};
- for(int i=0;i<7;++i){
-  auto& k=knobs[static_cast<std::size_t>(i)];addAndMakeVisible(k);
-  k.setSliderStyle(juce::Slider::RotaryHorizontalVerticalDrag);
-  k.setRotaryParameters(juce::degreesToRadians(225.f),juce::degreesToRadians(495.f),true);
-  k.setTextBoxStyle(juce::Slider::TextBoxBelow,false,i==0||i==6?110:94,25);
-  k.setColour(juce::Slider::textBoxTextColourId,ivory);
-  k.setColour(juce::Slider::textBoxOutlineColourId,juce::Colours::transparentBlack);
-  k.setDoubleClickReturnValue(true,i==6?0:0);
-  attach(k,ids[i]);
-  auto& label=knobLabels[static_cast<std::size_t>(i)];addAndMakeVisible(label);
-  label.setText(titles[i],juce::dontSendNotification);
-  label.setJustificationType(juce::Justification::centred);
-  label.setColour(juce::Label::textColourId,ivory);
-  label.setFont(font(i==0||i==6?20.f:16.f,true));
- }
- addAndMakeVisible(vuL);addAndMakeVisible(vuR);
- addAndMakeVisible(styleBox);addAndMakeVisible(presetBox);
- for(int i=0;i<40;++i)styleBox.addItem(boom::styles()[i].name,i+1);
- for(int i=0;i<100;++i)presetBox.addItem(boom::makePreset(i).name,i+1);
- styleBox.setSelectedId(processor.styleIndex()+1,juce::dontSendNotification);
- if(processor.presetIndex()>=0)presetBox.setSelectedId(processor.presetIndex()+1,juce::dontSendNotification);
- styleBox.onChange=[this]{if(styleBox.getSelectedId()>0){processor.loadStyle(styleBox.getSelectedId()-1);presetBox.setSelectedId(0,juce::dontSendNotification);}};
- presetBox.onChange=[this]{if(presetBox.getSelectedId()>0){processor.loadFactoryPreset(presetBox.getSelectedId()-1);
-  styleBox.setSelectedId(processor.styleIndex()+1,juce::dontSendNotification);}};
- for(auto* b:{&browserButton,&chainButton,&metersButton,&languageButton,&helpButton,
-  &bypassButton,&monoButton,&meterSourceButton,&storeA,&storeB,&recallA,&recallB,&abMenuButton})addAndMakeVisible(b);
- bypassButton.setClickingTogglesState(true);monoButton.setClickingTogglesState(true);
- meterSourceButton.setClickingTogglesState(true);
- bypassAttachment=std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(p.state(),"bypass",bypassButton);
- monoAttachment=std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(p.state(),"mono",monoButton);
- meterAttachment=std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(p.state(),"meterInput",meterSourceButton);
- browserButton.onClick=[this]{showBrowser();};chainButton.onClick=[this]{showChain();};
- metersButton.onClick=[this]{showMeters();};helpButton.onClick=[this]{showHelp();};
- languageButton.onClick=[this]{auto* v=processor.state().getRawParameterValue("language");
-  auto* param=processor.state().getParameter("language");if(param&&v)param->setValueNotifyingHost(param->convertTo0to1(v->load()<0.5f?1.f:0.f));
-  setLanguage(v&&v->load()>0.5f);};
- abMenuButton.onClick=[this]{
-  juce::PopupMenu menu;
-  const bool en=processor.state().getRawParameterValue("language")->load()>0.5f;
-  menu.addItem(1,en?"Copy A to B":"Copier A vers B");
-  menu.addItem(2,en?"Copy B to A":"Copier B vers A");
-  auto safe=juce::Component::SafePointer<BoomAudioProcessorEditor>(this);
-  menu.showMenuAsync(juce::PopupMenu::Options().withTargetComponent(abMenuButton),[safe](int choice){
-   if(safe==nullptr)return;
-   if(choice==1)safe->processor.copyComparisonState(0,1);
-   if(choice==2)safe->processor.copyComparisonState(1,0);
-  });
- };
- storeA.onClick=[this]{storeState(0);};storeB.onClick=[this]{storeState(1);};
- recallA.onClick=[this]{recallState(0);};recallB.onClick=[this]{recallState(1);};
- setLanguage(processor.state().getRawParameterValue("language")->load()>0.5f);
- setResizable(true,true);setResizeLimits(1120,700,1920,1200);
- if(auto* c=getConstrainer())c->setFixedAspectRatio(1.6);
- setSize(1440,900);startTimerHz(30);
-}
-BoomAudioProcessorEditor::~BoomAudioProcessorEditor(){stopTimer();closeOverlays();setLookAndFeel(nullptr);}
-void BoomAudioProcessorEditor::attach(juce::Slider& k,const char* id){
- knobAttachments.push_back(std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(processor.state(),id,k));
-}
-juce::Rectangle<int> BoomAudioProcessorEditor::rect(int x,int y,int w,int h)const{
- return {juce::roundToInt(x*getWidth()/1440.0f),juce::roundToInt(y*getHeight()/900.0f),
-  juce::roundToInt(w*getWidth()/1440.0f),juce::roundToInt(h*getHeight()/900.0f)};
-}
-void BoomAudioProcessorEditor::paintStudio(juce::Graphics& g,float w,float){
- juce::ColourGradient wall(juce::Colour::fromRGB(62,46,35),0,0,
-  juce::Colour::fromRGB(13,12,12),0,420,false);
- g.setGradientFill(wall);g.fillRect(0,0,1440,415);
- // Acoustic wood slats, textured treatment and understated indirect warm lighting.
- for(int i=0;i<58;++i){
-  int x=i*27;g.setColour(juce::Colour::fromRGB(97,64,39).withAlpha(i%3==0?.40f:.20f));g.fillRect(x,84,9,232);
-  g.setColour(juce::Colours::black.withAlpha(.35f));g.fillRect(x+10,84,4,232);
- }
- juce::ColourGradient light(amber.withAlpha(.24f),720,132,juce::Colours::transparentBlack,720,368,true);
- g.setGradientFill(light);g.fillRect(0,95,1440,315);
- for(int channel=0;channel<2;++channel){
-  const int x=channel==0?215:1135;
-  g.setColour(juce::Colours::black.withAlpha(.6f));g.fillRoundedRectangle(float(x-74),135,148,234,12);
-  juce::ColourGradient speaker(juce::Colour::fromRGB(39,39,39),x-70.f,140.f,juce::Colour::fromRGB(7,8,8),x+70.f,370.f,false);
-  g.setGradientFill(speaker);g.fillRoundedRectangle(x-68.f,141.f,136.f,222.f,9);
-  for(int j=0;j<2;++j){float cy=j==0?195.f:297.f,rad=j==0?28.f:49.f;
-   g.setColour(juce::Colour::fromRGB(72,70,63));g.fillEllipse(x-rad,cy-rad,rad*2,rad*2);
-   g.setColour(juce::Colour::fromRGB(16,16,16));g.fillEllipse(x-rad*.75f,cy-rad*.75f,rad*1.5f,rad*1.5f);
-   g.setColour(juce::Colour::fromRGB(85,80,70));g.fillEllipse(x-rad*.36f,cy-rad*.36f,rad*.72f,rad*.72f);
+void BoomAudioProcessorEditor::renderExtra(juce::Graphics& g){
+ const auto area=juce::Rectangle<float>(48.f,106.f,1543.f,229.f);
+ juce::ColourGradient bg(juce::Colour::fromRGB(54,17,25),area.getTopLeft(),velvet,area.getBottomRight(),false);
+ g.setGradientFill(bg);g.fillRoundedRectangle(area,7.f);
+ g.setColour(copper);g.drawRoundedRectangle(area,7.f,1.5f);
+ g.setColour(gold);g.setFont(makeFont(18,true));
+ auto title=page==Page::meters?"MESURES DE PRÉCISION":page==Page::settings?"RÉGLAGES DE LA CONSOLE":"AIDE / WORKFLOW BOOM";
+ g.drawText(title,72,114,700,32,juce::Justification::centredLeft);
+ g.drawText("×",1540,113,29,29,juce::Justification::centred);
+ g.setColour(muted);g.drawLine(70.f,154.f,1572.f,154.f,1.f);
+ const auto m=proc.lastMeters();
+ if(page==Page::meters){
+  const juce::String labels[]={"LUFS MOMENTANÉ","LUFS COURT TERME","LUFS INTÉGRÉ","LRA",
+   "CRÊTE VRAIE EST.","CORRÉLATION","GR COMP.","GR LIMITEUR"};
+  const float vals[]={m.momentaryLufs,m.shortTermLufs,m.integratedLufs,m.lra,
+   boom::gainToDb(m.truePeak),m.correlation,m.compressorGainReductionDb,m.limiterGainReductionDb};
+  for(int i=0;i<8;++i){const int x=70+(i%4)*372,y=165+(i/4)*78;
+   g.setColour(gold);g.setFont(makeFont(12,true));g.drawText(labels[i],x,y,350,21,juce::Justification::centredLeft);
+   g.setColour(ivory);g.setFont(makeFont(23,true));
+   g.drawText(juce::String(vals[i],1)+(i<3?" LUFS":i==3?" LU":i==4?" dBTP*":i>=6?" dB":""),x,y+20,330,40,juce::Justification::centredLeft);
   }
+ }else if(page==Page::settings){
+  g.setColour(ivory);g.setFont(makeFont(18));
+  g.drawFittedText("Langue : "+juce::String(english?"English":"Français")+
+   "     •     Cliquer pour changer : FR / EN     •     MAJ + glisser : réglage fin\n"
+   "Clic droit sur un potentiomètre : menu numérique du paramètre.\n"
+   "Les réglages sont sauvegardés par l'hôte DAW ; les presets utilisateur sont exportables en .boom.",
+   75,170,1460,125,juce::Justification::topLeft,4);
+ }else{
+  g.setColour(ivory);g.setFont(makeFont(18));
+  g.drawFittedText("1. Choisissez votre Style musical parmi les 40 Styles.\n"
+   "2. Ouvrez le navigateur de 100 presets depuis le menu PRESET DE MASTERING.\n"
+   "3. Réglez INPUT DRIVE, les cinq bandes EQ et PUSH pour affiner le mastering.\n"
+   "4. Comparez A et B ; contrôlez les mesures LUFS avant export.\n"
+   "Attention : plafond true-peak et conformité EBU R128 à valider indépendamment.",
+   75,167,1455,143,juce::Justification::topLeft,6);
  }
- // Centered mastering rack and mastering desk
- g.setColour(juce::Colour::fromRGB(16,16,16));g.fillRoundedRectangle(488,183,464,183,8);
- for(int i=0;i<4;++i){
-  int y=195+i*40;g.setColour(juce::Colour::fromRGB(71,65,57));g.fillRoundedRectangle(503.f,float(y),434.f,35.f,4);
-  g.setColour(brass.withAlpha(.8f));g.drawRoundedRectangle(503.f,float(y),434.f,35.f,4,1);
-  for(int j=0;j<8;++j){g.setColour(juce::Colour::fromRGB(32,32,32));g.fillEllipse(523.f+j*48.f,float(y+10),15,15);
-   g.setColour(amber.withAlpha((i+j)%3==0?.95f:.40f));g.fillEllipse(529.f+j*48.f,float(y+16),3,3);}
- }
- g.setColour(juce::Colour::fromRGB(94,58,37));g.fillRect(0,375,1440,40);
- g.setColour(juce::Colour::fromRGB(149,92,44).withAlpha(.7f));g.drawLine(0,376,1440,376,3);
- (void)w;
 }
 void BoomAudioProcessorEditor::paint(juce::Graphics& g){
- juce::Graphics::ScopedSaveState saved(g);
- g.addTransform(juce::AffineTransform::scale(getWidth()/1440.f,getHeight()/900.f));
- paintStudio(g,1440,405);
- // Control panel — walnut border, engraved champagne metal, bronzed fittings.
- g.setColour(walnut);g.fillRect(0,404,1440,496);
- for(int i=0;i<26;++i){g.setColour(juce::Colours::black.withAlpha(i%3==0?.11f:.04f));g.drawHorizontalLine(410+i*18,0,1440);}
- juce::ColourGradient panel(juce::Colour::fromRGB(82,75,63),20,432,
-  juce::Colour::fromRGB(29,27,25),1420,900,false);
- g.setGradientFill(panel);g.fillRoundedRectangle(20,426,1400,452,17);
- g.setColour(brass);g.drawRoundedRectangle(21,426,1398,450,15,3);
- g.setColour(charcoal.withAlpha(.65f));g.fillRoundedRectangle(33,443,1374,423,10);
- g.setColour(brass.withAlpha(.45f));g.drawLine(338,462,338,850,1.5f);
- g.drawLine(1091,462,1091,850,1.5f);
- // Top logo with subtle golden emboss
- g.setFont(font(67,true));g.setColour(juce::Colours::black.withAlpha(.5f));
- g.drawText("BOOM",521,30,400,80,juce::Justification::centred);
- g.setColour(ivory);g.drawText("BOOM",520,27,400,80,juce::Justification::centred);
- g.setColour(brass);g.setFont(font(17,true));
- g.drawText("PROFESSIONAL ANALOG MASTERING CONSOLE",475,107,490,26,juce::Justification::centred);
- g.setFont(font(14));g.drawText("LIBERTY MUSIC SOFTWARE",525,137,390,24,juce::Justification::centred);
- g.setFont(font(13,true));g.drawText("STYLE",63,28,280,22,juce::Justification::centredLeft);
- g.drawText("PRESET",1054,28,300,22,juce::Justification::centredLeft);
- g.setFont(font(18,true));g.setColour(ivory);
- g.drawText("THE POWER BEHIND YOUR MASTER",432,389,576,27,juce::Justification::centred);
- g.setFont(font(18,true));g.drawText("MASTERING EQUALIZER",455,633,532,30,juce::Justification::centred);
- g.setColour(brass);g.drawLine(470,662,974,662,1.f);
- // Brass screws engraved into hardware panel
- for(auto x:{46,1392})for(auto y:{452,850}){g.setColour(brass);g.fillEllipse(float(x-5),float(y-5),10,10);
-  g.setColour(charcoal);g.drawLine(float(x-2),float(y-2),float(x+2),float(y+2),1.4f);}
-}
-void BoomAudioProcessorEditor::resized(){
- const int xEq[]={412,535,658,781,904}; // 3px minimum separation between EQ controls
- knobs[0].setBounds(rect(67,545,255,247));knobLabels[0].setBounds(rect(78,793,232,32));
- for(int i=1;i<=5;++i){knobs[static_cast<std::size_t>(i)].setBounds(rect(xEq[i-1],679,120,137));
-  knobLabels[static_cast<std::size_t>(i)].setBounds(rect(xEq[i-1],818,120,29));}
- knobs[6].setBounds(rect(1145,545,225,248));knobLabels[6].setBounds(rect(1148,793,218,33));
- vuL.setBounds(rect(478,468,224,157));vuR.setBounds(rect(733,468,224,157));
- styleBox.setBounds(rect(56,52,332,39));presetBox.setBounds(rect(1054,52,326,39));
- browserButton.setBounds(rect(1253,99,126,35));
- abMenuButton.setBounds(rect(529,337,106,34));chainButton.setBounds(rect(646,337,106,34));metersButton.setBounds(rect(763,337,106,34));
- languageButton.setBounds(rect(880,337,106,34));helpButton.setBounds(rect(997,337,42,34));
- bypassButton.setBounds(rect(757,850,108,30));monoButton.setBounds(rect(1168,481,154,35));
- meterSourceButton.setBounds(rect(546,850,193,30));
- storeA.setBounds(rect(357,850,83,30));storeB.setBounds(rect(446,850,83,30));
- recallA.setBounds(rect(878,850,70,30));recallB.setBounds(rect(953,850,70,30));
- if(overlay){
-  const bool isPresetBrowser=dynamic_cast<BrowserPanel*>(overlay.get())!=nullptr;
-  overlay->setBounds(isPresetBrowser?rect(24,124,1392,292):rect(190,435,1060,432));
+ const juce::Image& img=page==Page::browser?browserSkin:chainSkin;
+ g.fillAll(velvet);
+ if(img.isValid())g.drawImageWithin(img,0,0,getWidth(),getHeight(),juce::RectanglePlacement::stretchToFit);
+ juce::Graphics::ScopedSaveState state(g);
+ g.addTransform(juce::AffineTransform::scale(float(getWidth())/artW(),float(getHeight())/artH()));
+ renderDynamicText(g);
+ if(page==Page::browser)renderBrowser(g);
+ if(page==Page::meters||page==Page::settings||page==Page::help)renderExtra(g);
+ if(notice.isNotEmpty()){
+  const int y=page==Page::browser?423:335;
+  g.setColour(velvet.withAlpha(.96f));g.fillRoundedRectangle(603.f,float(y),462.f,24.f,4.f);
+  g.setColour(gold);g.setFont(makeFont(12,true));
+  g.drawFittedText(notice,607,y+2,454,21,juce::Justification::centred,1);
  }
 }
 void BoomAudioProcessorEditor::timerCallback(){
- const auto m=processor.lastMeters();vuL.setLevel(m.vuL);vuR.setLevel(m.vuR);
- const int shownStyle=processor.styleIndex()+1,shownPreset=processor.presetIndex()+1;
- if(styleBox.getSelectedId()!=shownStyle)styleBox.setSelectedId(shownStyle,juce::dontSendNotification);
- if(presetBox.getSelectedId()!=shownPreset)presetBox.setSelectedId(shownPreset,juce::dontSendNotification);
- if(auto* raw=processor.state().getRawParameterValue("language")){
-  const bool english=raw->load()>=0.5f;
-  if(languageButton.getButtonText()!=(english?"EN / FR":"FR / EN"))setLanguage(english);
+ const auto m=proc.lastMeters();
+ smoothVuL+=.22f*(m.vuL-smoothVuL);
+ smoothVuR+=.22f*(m.vuR-smoothVuR);
+ const bool next=raw("language")>.5f;
+ if(next!=english){english=next;
+  search.setTextToShowWhenEmpty(english?"Search the 100 factory presets...":"Rechercher parmi les 100 presets...",muted);
+  saveName.setTextToShowWhenEmpty(english?"Save current preset...":"Sauvegarder le preset actuel...",muted);
+ }
+ repaint();
+}
+void BoomAudioProcessorEditor::refreshRows(){
+ PresetRow previously{false,-1};
+ if(selectedRow>=0&&selectedRow<int(rows.size()))previously=rows[static_cast<size_t>(selectedRow)];
+ rows.clear();
+ const auto query=search.getText().trim();
+ const bool showFactory=category!=11;
+ if(showFactory)for(int i=0;i<100;++i){
+  const auto p=boom::makePreset(i);
+  if(category>=0&&category<=9&&p.category!=category)continue;
+  if(category==10&&!proc.isFavorite(i))continue;
+  if(styleFilter>=0&&p.style!=styleFilter)continue;
+  if(query.isNotEmpty()&&!juce::String(p.name).containsIgnoreCase(query)&&
+    !juce::String(boom::styles()[static_cast<size_t>(p.style)].name).containsIgnoreCase(query))continue;
+  rows.push_back({false,i});
+ }
+ if((category==11||category==-1)&&styleFilter<0)
+  for(int i=0;i<proc.userPresetCount();++i)
+   if(proc.userPresetName(i).containsIgnoreCase(query))rows.push_back({true,i});
+ selectedRow=rows.empty()?-1:0;
+ for(int i=0;i<int(rows.size());++i)
+  if(rows[static_cast<size_t>(i)].user==previously.user&&rows[static_cast<size_t>(i)].index==previously.index)
+   {selectedRow=i;break;}
+ firstVisible=juce::jlimit(0,juce::jmax(0,int(rows.size())-5),firstVisible);
+ if(selectedRow>=0&&selectedRow<firstVisible)firstVisible=selectedRow;
+ if(selectedRow>=firstVisible+5)firstVisible=selectedRow-4;
+ repaint();
+}
+void BoomAudioProcessorEditor::selectRow(int idx){
+ if(idx<0||idx>=int(rows.size()))return;
+ selectedRow=idx;
+ if(idx<firstVisible)firstVisible=idx;
+ if(idx>=firstVisible+5)firstVisible=idx-4;
+ repaint();
+}
+void BoomAudioProcessorEditor::loadRow(){
+ if(selectedRow<0||selectedRow>=int(rows.size()))return;
+ const auto r=rows[static_cast<size_t>(selectedRow)];
+ if(r.user){
+  if(proc.loadUserPreset(r.index))notice="Preset utilisateur chargé";
+ }else choosePreset(r.index);
+ repaint();
+}
+void BoomAudioProcessorEditor::choosePreset(int idx){
+ if(idx<0||idx>=100)return;
+ proc.loadFactoryPreset(idx);
+ notice="Preset chargé : "+juce::String(boom::makePreset(idx).name);
+ repaint();
+}
+void BoomAudioProcessorEditor::chooseStyle(int idx){
+ if(idx<0||idx>=40)return;
+ proc.loadStyle(idx);
+ notice="Style chargé : "+juce::String(boom::styles()[static_cast<size_t>(idx)].name);
+ repaint();
+}
+void BoomAudioProcessorEditor::showPresetsMenu(){
+ juce::PopupMenu root;
+ root.addItem(1,english?"Open preset browser":"Ouvrir le navigateur de presets");
+ root.addSeparator();
+ for(int c=0;c<10;++c){
+  juce::PopupMenu sub;
+  for(int j=0;j<10;++j){const int i=c*10+j;
+   sub.addItem(100+i,juce::String(boom::makePreset(i).name));
+  }
+  root.addSubMenu(juce::String(boom::categories[static_cast<size_t>(c)]),sub);
+ }
+ juce::Component::SafePointer<BoomAudioProcessorEditor> safe(this);
+ root.showMenuAsync(juce::PopupMenu::Options(),[safe](int result){
+  if(safe==nullptr)return;
+  if(result==1)safe->showPage(Page::browser);
+  else if(result>=100&&result<200)safe->choosePreset(result-100);
+ });
+}
+void BoomAudioProcessorEditor::showStyleMenu(){
+ juce::PopupMenu m;
+ m.addItem(1,english?"Show all styles":"Afficher tous les Styles");
+ m.addSeparator();
+ for(int i=0;i<40;++i)m.addItem(i+100,juce::String(boom::styles()[static_cast<size_t>(i)].name));
+ juce::Component::SafePointer<BoomAudioProcessorEditor> safe(this);
+ m.showMenuAsync(juce::PopupMenu::Options(),[safe](int id){
+  if(safe==nullptr)return;
+  if(id==1){safe->showPage(Page::browser);safe->styleFilter=-1;safe->category=-1;safe->refreshRows();}
+  else if(id>=100&&id<140)safe->chooseStyle(id-100);
+ });
+}
+void BoomAudioProcessorEditor::saveCurrent(){
+ const auto name=saveName.getText().trim();
+ if(name.isEmpty()){notice="Entrez un nom de preset, puis validez avec Entrée";repaint();return;}
+ const int newIndex=proc.saveUserPreset(name);
+ notice=newIndex>=0?"Preset utilisateur enregistré dans le projet DAW":"Impossible d'enregistrer ce preset";
+ if(newIndex>=0){category=11;search.clear();styleFilter=-1;refreshRows();
+  for(int i=0;i<int(rows.size());++i)if(rows[static_cast<size_t>(i)].user&&rows[static_cast<size_t>(i)].index==newIndex){selectRow(i);break;}
+ }
+ saveName.clear();repaint();
+}
+void BoomAudioProcessorEditor::showUserMenu(){
+ juce::PopupMenu menu;
+ menu.addItem(1,"Enregistrer les réglages actuels");
+ menu.addItem(2,"Renommer le preset utilisateur");
+ menu.addItem(3,"Supprimer le preset utilisateur");
+ menu.addSeparator();
+ menu.addItem(4,"Importer .boom");
+ menu.addItem(5,"Exporter .boom");
+ juce::Component::SafePointer<BoomAudioProcessorEditor> safe(this);
+ menu.showMenuAsync(juce::PopupMenu::Options(),[safe](int command){
+  if(safe==nullptr)return;
+  auto& e=*safe;
+  if(command==1){e.saveName.grabKeyboardFocus();e.notice="Saisissez un nom et validez avec Entrée";}
+  else if(command==4)e.importUser();
+  else if(command>=2&&command<=5){
+   if(e.selectedRow<0||e.selectedRow>=int(e.rows.size())||!e.rows[static_cast<size_t>(e.selectedRow)].user){
+    e.notice="Sélectionnez un preset utilisateur";e.repaint();return;
+   }
+   const int idx=e.rows[static_cast<size_t>(e.selectedRow)].index;
+   if(command==2){
+    const auto s=e.saveName.getText().trim();
+    if(!s.isEmpty()){e.proc.renameUserPreset(idx,s);e.notice="Preset renommé";e.refreshRows();}
+    else{e.saveName.grabKeyboardFocus();e.notice="Entrez le nouveau nom avant de choisir Renommer";}
+   }else if(command==3){
+    if(!e.deleteArmed){e.deleteArmed=true;e.notice="Choisissez Supprimer une seconde fois pour confirmer";}
+    else{e.proc.deleteUserPreset(idx);e.deleteArmed=false;e.notice="Preset supprimé";e.refreshRows();}
+   }else if(command==5)e.exportUser();
+   e.repaint();
+  }
+ });
+}
+void BoomAudioProcessorEditor::importUser(){
+ chooser=std::make_unique<juce::FileChooser>("Importer un preset BOOM",juce::File{},"*.boom");
+ juce::Component::SafePointer<BoomAudioProcessorEditor> safe(this);
+ chooser->launchAsync(juce::FileBrowserComponent::openMode|juce::FileBrowserComponent::canSelectFiles,
+  [safe](const juce::FileChooser& c){
+   if(safe==nullptr)return;
+   const auto file=c.getResult();if(file==juce::File{})return;
+   const bool ok=safe->proc.importUserPreset(file);
+   safe->notice=ok?"Preset .boom importé":"Import impossible";
+   if(ok){safe->category=11;safe->refreshRows();}
+   safe->repaint();
+  });
+}
+void BoomAudioProcessorEditor::exportUser(){
+ if(selectedRow<0||selectedRow>=int(rows.size()))return;
+ const auto r=rows[static_cast<size_t>(selectedRow)];if(!r.user)return;
+ const auto initial=juce::File::getSpecialLocation(juce::File::userDocumentsDirectory)
+  .getChildFile(juce::File::createLegalFileName(proc.userPresetName(r.index))+".boom");
+ chooser=std::make_unique<juce::FileChooser>("Exporter un preset BOOM",initial,"*.boom");
+ juce::Component::SafePointer<BoomAudioProcessorEditor> safe(this);
+ chooser->launchAsync(juce::FileBrowserComponent::saveMode|juce::FileBrowserComponent::canSelectFiles|
+   juce::FileBrowserComponent::warnAboutOverwriting,
+   [safe,index=r.index](const juce::FileChooser& c){
+    if(safe==nullptr)return;
+    const auto f=c.getResult();if(f==juce::File{})return;
+    safe->notice=safe->proc.exportUserPreset(index,f.withFileExtension(".boom"))?
+       "Preset exporté":"Export impossible";
+    safe->repaint();
+   });
+}
+void BoomAudioProcessorEditor::handleClick(juce::Point<float> p,const juce::MouseEvent& e){
+ const bool b=page==Page::browser;
+ // Header selectors — selection always recalls the DSP parameters.
+ if(hit(p,b?31.f:88.f,0,b?370.f:365.f,92)){
+  showStyleMenu();return;
+ }
+ if(hit(p,b?1150.f:1190.f,0,b?405.f:390.f,95)){
+  showPresetsMenu();return;
+ }
+ // Browse mode: interactive category, scrolling rows and detailed preset selection.
+ if(b&&hit(p,20,98,1525,338)){
+  if(hit(p,1500,99,29,28)){showPage(Page::chain);return;}
+  if(hit(p,29,135,310,278)){
+   const int next=juce::jlimit(0,11,int((p.y-136.f)/22.f));
+   category=next;styleFilter=-1;firstVisible=0;refreshRows();return;
+  }
+  if(hit(p,854,138,176,30)){
+   juce::PopupMenu styles;styles.addItem(1,"Tous les Styles");
+   for(int i=0;i<40;++i)styles.addItem(i+2,juce::String(boom::styles()[static_cast<size_t>(i)].name));
+   juce::Component::SafePointer<BoomAudioProcessorEditor> safe(this);
+   styles.showMenuAsync(juce::PopupMenu::Options(),[safe](int id){
+    if(safe==nullptr||id<=0)return;
+    safe->styleFilter=id==1?-1:id-2;safe->firstVisible=0;safe->refreshRows();
+   });return;
+  }
+  if(hit(p,369,211,743,180)){
+   int idx=firstVisible+int((p.y-211.f)/34.f);
+   if(idx>=0&&idx<int(rows.size())){
+    selectRow(idx);
+    const auto r=rows[static_cast<size_t>(idx)];
+    if(p.x>1066&&!r.user){proc.toggleFavorite(r.index);refreshRows();}
+   }
+   return;
+  }
+  if(hit(p,1195,353,285,39)){loadRow();return;}
+  if(hit(p,373,396,119,26)){selectRow(selectedRow-1);return;}
+  if(hit(p,501,396,117,26)){selectRow(selectedRow+1);return;}
+  if(hit(p,631,396,123,26)){category=10;firstVisible=0;refreshRows();return;}
+  if(hit(p,771,396,159,26)){showUserMenu();return;}
+  if(hit(p,1466,143,35,31)&&selectedRow>=0&&selectedRow<int(rows.size())){
+   const auto r=rows[static_cast<size_t>(selectedRow)];
+   if(!r.user){proc.toggleFavorite(r.index);refreshRows();}return;
+  }
+ }
+ // Master console always remains playable while browser, metering or help is open.
+ const int bar=b?441:349;
+ if(hit(p,b?30.f:48.f,bar,100,36)){showPage(Page::chain);return;}
+ if(hit(p,b?132.f:159.f,bar,111,36)){showPage(Page::meters);return;}
+ if(hit(p,b?250.f:283.f,bar,113,36)){showPage(Page::settings);return;}
+ if(hit(p,b?370.f:411.f,bar,93,36)){showPage(Page::help);return;}
+ if(hit(p,b?464.f:515.f,bar,77,36)){toggle("language");english=raw("language")>.5f;repaint();return;}
+ if(hit(p,b?1145.f:1195.f,bar,42,36)){proc.recallComparisonState(0);selectedComparison=0;repaint();return;}
+ if(hit(p,b?1190.f:1240.f,bar,45,36)){proc.recallComparisonState(1);selectedComparison=1;repaint();return;}
+ if(hit(p,b?1223.f:1274.f,bar,54,36)){proc.storeComparisonState(0);notice="État A mémorisé";repaint();return;}
+ if(hit(p,b?1278.f:1331.f,bar,54,36)){proc.storeComparisonState(1);notice="État B mémorisé";repaint();return;}
+ if(hit(p,b?1333.f:1384.f,bar,54,36)){proc.copyComparisonState(0,1);notice="A copié vers B";repaint();return;}
+ if(hit(p,b?1388.f:1442.f,bar,54,36)){proc.copyComparisonState(1,0);notice="B copié vers A";repaint();return;}
+ // Existing meter / bypass / mono controls on both photographs.
+ if(hit(p,b?438.f:458.f,b?507.f:429.f,b?230.f:248.f,38)){toggle("meterInput");return;}
+ if(hit(p,b?738.f:776.f,b?506.f:429.f,b?104.f:120.f,40)){toggle("bypass");return;}
+ if(hit(p,b?907.f:965.f,b?506.f:429.f,b?200.f:225.f,40)){toggle("mono");return;}
+ if(page==Page::meters||page==Page::settings||page==Page::help){
+  if(hit(p,1527,106,52,47)){showPage(Page::chain);return;}
+  if(page==Page::meters&&hit(p,1300,165,240,140))proc.requestLoudnessReset();
+  return;
+ }
+ if(page==Page::chain){
+  if(hit(p,1550,102,48,30)){showPage(Page::browser);return;}
+  static const std::array<std::pair<juce::Rectangle<float>,const char*>,5> toggles{{
+   {{228,154,81,24},"colorBypass"},{{470,154,83,24},"eqBypass"},
+   {{719,154,82,24},"deEssBypass"},{{969,154,85,24},"compBypass"},
+   {{1227,154,86,24},"limiterBypass"}
+  }};
+  for(const auto& t:toggles)if(t.first.contains(p)){toggle(t.second);return;}
+  if(hit(p,218,180,86,29)){
+   juce::PopupMenu mode;mode.addItem(1,"CLEAN");mode.addItem(2,"TUBE");mode.addItem(3,"TAPE");
+   juce::Component::SafePointer<BoomAudioProcessorEditor> safe(this);
+   mode.showMenuAsync(juce::PopupMenu::Options(),[safe](int i){if(safe!=nullptr&&i>=1&&i<=3)safe->setParam("color",float(i-1));});return;
+  }
+  if(hit(p,846,290,129,29)){toggle("compStereoLink");return;}
+  if(hit(p,1095,250,122,27)){notice="Auto Release : contrôlé par le DSP actuel";repaint();return;}
+  if(hit(p,1095,272,122,27)){toggle("compStereoLink");return;}
+  if(const auto* field=chainField(p)){beginDrag(field->id,e);return;}
+ }
+ if(const auto* knob=activeKnob(p)){beginDrag(knob->id,e);return;}
+ // Convenience: clicking the browser button in the preset header opens the full browser.
+}
+void BoomAudioProcessorEditor::mouseDown(const juce::MouseEvent& e){
+ if(e.mods.isRightButtonDown()){
+  const auto p=artPoint(e);
+  if(const auto* k=activeKnob(p)){
+   juce::PopupMenu menu;menu.addItem(1,"Réinitialiser le paramètre");
+   juce::Component::SafePointer<BoomAudioProcessorEditor> safe(this);
+   const juce::String id(k->id);
+   menu.showMenuAsync(juce::PopupMenu::Options(),[safe,id](int action){
+    if(safe==nullptr||action!=1)return;
+    if(auto* param=safe->proc.state().getParameter(id))safe->setParam(id.toRawUTF8(),param->convertFrom0to1(param->getDefaultValue()));
+   });return;
+  }
+ }
+ handleClick(artPoint(e),e);
+}
+void BoomAudioProcessorEditor::mouseDrag(const juce::MouseEvent& e){
+ if(!isGesture||dragged.isEmpty())return;
+ auto* p=proc.state().getParameter(dragged);if(!p)return;
+ const auto range=p->getNormalisableRange();
+ const auto now=artPoint(e);
+ const float span=range.end-range.start;
+ const float sensitivity=e.mods.isShiftDown()?.0008f:.0038f;
+ const float value=juce::jlimit(range.start,range.end,startValue+(startPosition.y-now.y)*span*sensitivity);
+ setParam(dragged.toRawUTF8(),value);
+}
+void BoomAudioProcessorEditor::mouseUp(const juce::MouseEvent&){finishDrag();}
+void BoomAudioProcessorEditor::mouseDoubleClick(const juce::MouseEvent& e){
+ const auto p=artPoint(e);
+ if(page==Page::browser && hit(p,368,211,744,181)){loadRow();return;}
+ if(const auto* k=activeKnob(p)){
+  if(auto* param=proc.state().getParameter(k->id))setParam(k->id,param->convertFrom0to1(param->getDefaultValue()));
  }
 }
-void BoomAudioProcessorEditor::setLanguage(bool en){
- languageButton.setButtonText(en?"EN / FR":"FR / EN");
- browserButton.setButtonText(en?"PRESETS":"PRESETS");
- metersButton.setButtonText(en?"METERS":"MESURES");
- bypassButton.setButtonText(en?"BYPASS":"BYPASS");
- monoButton.setButtonText(en?"MONO MONITOR":"ÉCOUTE MONO");
- storeA.setButtonText(en?"SAVE A":"SAUVER A");storeB.setButtonText(en?"SAVE B":"SAUVER B");
- meterSourceButton.setButtonText(en?"INPUT / PROCESS":"ENTRÉE / TRAITÉ");
- knobLabels[0].setText(en?"INPUT DRIVE":"GAIN D'ENTRÉE",juce::dontSendNotification);
- // EQ frequency labels are internationally understood.
+void BoomAudioProcessorEditor::mouseWheelMove(const juce::MouseEvent& e,const juce::MouseWheelDetails& d){
+ if(page==Page::browser){const auto p=artPoint(e);
+  if(hit(p,363,206,749,183)){
+   firstVisible=juce::jlimit(0,juce::jmax(0,int(rows.size())-5),firstVisible+(d.deltaY<0?1:-1)*juce::jmax(1,int(std::abs(d.deltaY)*3)));
+   repaint();return;
+  }
+ }
+ if(const auto* k=activeKnob(artPoint(e))){
+  if(auto* param=proc.state().getParameter(k->id)){
+   auto r=param->getNormalisableRange();setParam(k->id,raw(k->id)+(d.deltaY>0?1.f:-1.f)*(r.end-r.start)*.01f);
+  }
+ }
 }
-void BoomAudioProcessorEditor::storeState(int slot){processor.storeComparisonState(slot);}
-void BoomAudioProcessorEditor::recallState(int slot){
- processor.recallComparisonState(slot);
- styleBox.setSelectedId(processor.styleIndex()+1,juce::dontSendNotification);
- presetBox.setSelectedId(processor.presetIndex()+1,juce::dontSendNotification);
+bool BoomAudioProcessorEditor::keyPressed(const juce::KeyPress& key){
+ if(key==juce::KeyPress::escapeKey){showPage(Page::chain);return true;}
+ if(page==Page::browser && key==juce::KeyPress::returnKey){loadRow();return true;}
+ if(page==Page::browser && key==juce::KeyPress::downKey){selectRow(selectedRow+1);return true;}
+ if(page==Page::browser && key==juce::KeyPress::upKey){selectRow(selectedRow-1);return true;}
+ return false;
 }
-void BoomAudioProcessorEditor::closeOverlays(){
- overlay.reset();browserPanel.reset();chainPanel.reset();meteringPanel.reset();helpPanel.reset();
-}
-void BoomAudioProcessorEditor::showBrowser(){closeOverlays();browserPanel=std::make_unique<BrowserPanel>(processor,[this]{closeOverlays();});
- overlay=std::move(browserPanel);addAndMakeVisible(*overlay);resized();overlay->toFront(true);}
-void BoomAudioProcessorEditor::showChain(){closeOverlays();chainPanel=std::make_unique<ChainPanel>(processor.state(),[this]{closeOverlays();});
- overlay=std::move(chainPanel);addAndMakeVisible(*overlay);resized();overlay->toFront(true);}
-void BoomAudioProcessorEditor::showMeters(){closeOverlays();meteringPanel=std::make_unique<MeterPanel>(processor,[this]{closeOverlays();});
- overlay=std::move(meteringPanel);addAndMakeVisible(*overlay);resized();overlay->toFront(true);}
-void BoomAudioProcessorEditor::showHelp(){closeOverlays();helpPanel=std::make_unique<HelpPanel>([this]{closeOverlays();});
- overlay=std::move(helpPanel);addAndMakeVisible(*overlay);resized();overlay->toFront(true);}

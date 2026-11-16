@@ -22,6 +22,11 @@ else()
  set(BOOM_FORMATS VST3 Standalone)
 endif()
 
+juce_add_binary_data(BOOMArtwork
+ SOURCES
+  Assets/boom-console-reference.jpg
+  Assets/boom-browser-reference.jpg)
+
 juce_add_plugin(BOOM
  COMPANY_NAME "Liberty Music Software"
  BUNDLE_ID "com.libertymusicsoftware.boom"
@@ -44,6 +49,7 @@ target_sources(BOOM PRIVATE
  Source/BoomDSP.h Source/LoudnessMeter.h Source/OversampledTube.h Source/FactoryLibrary.h)
 target_compile_definitions(BOOM PRIVATE JUCE_WEB_BROWSER=0 JUCE_USE_CURL=0 JUCE_VST3_CAN_REPLACE_VST2=0)
 target_link_libraries(BOOM PRIVATE
+ BOOMArtwork
  juce::juce_audio_utils
  juce::juce_gui_extra
  juce::juce_dsp
