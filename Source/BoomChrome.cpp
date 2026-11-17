@@ -1,15 +1,16 @@
 #include "BoomChrome.h"
+#include "BoomUiTheme.h"
 #include <algorithm>
 #include <cmath>
 
 namespace {
-const auto body=juce::Colour::fromRGB(25,12,13);
-const auto burgundy=juce::Colour::fromRGB(76,20,28);
-const auto copper=juce::Colour::fromRGB(161,80,61);
-const auto gold=juce::Colour::fromRGB(224,188,130);
-const auto cream=juce::Colour::fromRGB(245,228,195);
+const auto body=boom::ui::theme::background();
+const auto burgundy=boom::ui::theme::active();
+const auto copper=boom::ui::theme::copper();
+const auto gold=boom::ui::theme::gold();
+const auto cream=boom::ui::theme::ivory();
 juce::Font makeFont(float size,bool strong=false){
- return juce::Font(juce::FontOptions(size,strong?juce::Font::bold:juce::Font::plain));
+ return boom::ui::theme::font(size,strong);
 }
 void textIn(juce::Graphics& g,const juce::String& text,juce::Rectangle<int> r,
             float size,bool heavy,juce::Colour colour,juce::Justification why=juce::Justification::centred){
@@ -35,8 +36,8 @@ void BoomChrome::BrassLook::drawButtonText(
  juce::Graphics& g,juce::TextButton& b,bool,bool){
  g.setColour(b.isEnabled()?cream:cream.withAlpha(.45f));
  const auto big=b.getName()=="headerStyle"||b.getName()=="headerPreset";
- const float size=big?juce::jlimit(12.f,22.f,float(b.getHeight())*.57f):
-   juce::jlimit(9.5f,13.f,float(b.getHeight())*.47f);
+ const float size=big?juce::jlimit(12.f,21.f,float(b.getHeight())*.56f):
+   juce::jlimit(10.5f,14.f,float(b.getHeight())*.47f);
  g.setFont(makeFont(size,b.getToggleState()||big));
  g.drawFittedText(b.getButtonText(),b.getLocalBounds().reduced(5,1),
                   juce::Justification::centred,1);
@@ -88,7 +89,15 @@ void BoomChrome::setState(bool en,int page,bool level,int selected){
  updateButtons();repaint();
 }
 void BoomChrome::updateButtons(){
- if(area==Area::Header)return;
+ if(area==Area::Header){
+  headerButtons[0].setTooltip(english?"Browse all 40 mastering Styles":
+                                   "Parcourir les 40 Styles de mastering");
+  headerButtons[2].setTooltip(english?"Browse the 100 factory presets":
+                                   "Parcourir les 100 presets d'usine");
+  headerButtons[1].setTooltip(english?"Previous preset":"Preset pr\u00E9c\u00E9dent");
+  headerButtons[3].setTooltip(english?"Next preset":"Preset suivant");
+  return;
+ }
  const auto local=[this](const char* fr,const char* en){return juce::String(english?en:fr);};
  const juce::String labels[]{
   local("CHA\u00CENE","CHAIN"),local("MESURES","METERS"),
@@ -100,6 +109,21 @@ void BoomChrome::updateButtons(){
  for(size_t i=0;i<toolbarButtons.size();++i)
   if(toolbarButtons[i].getButtonText()!=labels[i])
    toolbarButtons[i].setButtonText(labels[i]);
+ const juce::String tips[]{
+  local("Cha\u00EEne de mastering","Mastering chain"),
+  local("Mesures audio","Audio measurements"),
+  local("R\u00E9glages du plugin","Plugin settings"),
+  local("Aide de BOOM","BOOM help"),
+  local("Changer de langue","Change language"),
+  local("Rappeler la m\u00E9moire A","Recall A"),
+  local("Rappeler la m\u00E9moire B","Recall B"),
+  local("Enregistrer la m\u00E9moire A","Store in A"),
+  local("Enregistrer la m\u00E9moire B","Store in B"),
+  local("Copier A dans B","Copy A into B"),
+  local("Copier B dans A","Copy B into A"),
+  local("Compensation du niveau pour la comparaison","Level matching")
+ };
+ for(size_t i=0;i<toolbarButtons.size();++i)toolbarButtons[i].setTooltip(tips[i]);
  constexpr int pagesForButtons[]={0,2,3,4}; // Chain, Meters, Settings, Help
  for(int i=0;i<4;++i)
   toolbarButtons[static_cast<size_t>(i)].setToggleState(activePage==pagesForButtons[i],
@@ -153,6 +177,12 @@ void BoomChrome::paint(juce::Graphics& g){
  g.setGradientFill(finish);g.fillRect(getLocalBounds());
  g.setColour(copper.withAlpha(.65f));
  g.fillRect(0,h-2,w,1);
+ if(area==Area::Toolbar && getWidth()>1000){
+  const auto x=toolbarButtons[4].getRight()+11;
+  g.setColour(gold.withAlpha(.3f));
+  g.drawVerticalLine(x,juce::roundToInt(.19f*h),
+                     juce::roundToInt(.80f*h));
+ }
  if(area==Area::Header){
   const float scale=std::min(float(w)/1450.f,float(h)/100.f);
   textIn(g,english?"MUSICAL STYLE":"STYLE MUSICAL",

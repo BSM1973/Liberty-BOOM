@@ -1,4 +1,5 @@
 #include "PluginEditor.h"
+#include "BoomUiTheme.h"
 #include "BoomBrowser.h"
 #include "BoomChainPanel.h"
 #include "BoomChrome.h"
@@ -9,12 +10,12 @@
 namespace {
 using namespace boom;
 using namespace boom::ui;
-const auto ivory=juce::Colour::fromRGB(247,228,187);
-const auto copper=juce::Colour::fromRGB(190,103,78);
-const auto gold=juce::Colour::fromRGB(221,183,118);
-const auto charcoal=juce::Colour::fromRGB(22,9,12);
+const auto ivory=boom::ui::theme::ivory();
+const auto copper=boom::ui::theme::copper();
+const auto gold=boom::ui::theme::gold();
+const auto charcoal=boom::ui::theme::background();
 juce::Font font(float size,bool bold=false){
- return juce::Font(juce::FontOptions(size,bold?juce::Font::bold:juce::Font::plain));
+ return boom::ui::theme::font(size,bold);
 }
 bool in(juce::Point<float> p,float x,float y,float w,float h){
  return p.x>=x && p.x<x+w && p.y>=y && p.y<y+h;

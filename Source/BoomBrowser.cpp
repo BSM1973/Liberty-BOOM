@@ -1,18 +1,32 @@
 #include "BoomBrowser.h"
+#include "BoomUiTheme.h"
 #include <algorithm>
 #include <array>
 
 namespace {
-const auto bg=juce::Colour::fromRGB(23,10,13);
-const auto panel=juce::Colour::fromRGB(33,16,20);
-const auto burgundy=juce::Colour::fromRGB(108,26,38);
-const auto bronze=juce::Colour::fromRGB(174,89,70);
-const auto gold=juce::Colour::fromRGB(224,184,119);
-const auto ivory=juce::Colour::fromRGB(244,224,187);
+const auto bg=boom::ui::theme::background();
+const auto panel=boom::ui::theme::surface();
+const auto burgundy=boom::ui::theme::active();
+const auto bronze=boom::ui::theme::copper();
+const auto gold=boom::ui::theme::gold();
+const auto ivory=boom::ui::theme::ivory();
 juce::Font f(float size,bool strong=false){
- return juce::Font(juce::FontOptions(size,strong?juce::Font::bold:juce::Font::plain));
+ return boom::ui::theme::font(size,strong);
 }
-constexpr float designWidth=1550.f,designHeight=345.f;
+constexpr const char* categoriesFR[10]={
+ "Pop / Commercial","Rock / Alternatif","M\u00E9tal / Heavy","Hip-Hop / Trap",
+ "\u00C9lectro / Dance","Jazz / Acoustique","Cin\u00E9ma / Ambient",
+ "Vintage analogique","Streaming","Outils mastering"
+};
+constexpr const char* categoriesEN[10]={
+ "Pop / Commercial","Rock / Alternative","Metal / Heavy","Hip-Hop / Trap",
+ "Electronic / Dance","Jazz / Acoustic","Cinema / Ambient","Vintage Analog",
+ "Streaming","Mastering Tools"
+};
+juce::String categoryDisplay(int index,bool english){
+ if(index<0||index>=10)return {};
+ return english?categoriesEN[index]:categoriesFR[index];
+}
 }
 
 void BoomBrowser::BrassButtons::drawButtonBackground(
@@ -30,7 +44,7 @@ void BoomBrowser::BrassButtons::drawButtonText(
  juce::Graphics& g,juce::TextButton& b,bool,bool){
  g.setColour(b.isEnabled()?ivory:ivory.withAlpha(.4f));
  const auto height=static_cast<float>(b.getHeight());
- g.setFont(f(juce::jlimit(10.f,15.f,height*.45f),b.getToggleState()));
+ g.setFont(f(juce::jlimit(11.f,15.f,height*.47f),b.getToggleState()));
  g.drawFittedText(b.getButtonText(),b.getLocalBounds().reduced(5,2),
                   juce::Justification::centred,1);
 }
@@ -38,6 +52,7 @@ void BoomBrowser::styleButton(juce::TextButton& b,juce::String text,
                               std::function<void()> callback){
  b.setLookAndFeel(&buttonsLook);
  b.setButtonText(std::move(text));
+ b.setTooltip(b.getButtonText());
  b.setMouseCursor(juce::MouseCursor::PointingHandCursor);
  b.onClick=std::move(callback);
  addAndMakeVisible(b);
@@ -75,7 +90,7 @@ BoomBrowser::BoomBrowser(BoomAudioProcessor& processor,std::function<void()> clo
   e->setColour(juce::TextEditor::textColourId,ivory);
   e->setColour(juce::TextEditor::outlineColourId,bronze);
   e->setColour(juce::TextEditor::focusedOutlineColourId,gold);
-  e->setFont(f(13.f));
+  e->setFont(f(boom::ui::theme::body));
   addAndMakeVisible(*e);
  }
  search.setTextToShowWhenEmpty("Rechercher un son, un Style, un tag...",gold.withAlpha(.63f));
@@ -108,7 +123,7 @@ BoomBrowser::BoomBrowser(BoomAudioProcessor& processor,std::function<void()> clo
  addAndMakeVisible(status);
  status.setJustificationType(juce::Justification::centredLeft);
  status.setColour(juce::Label::textColourId,gold);
- status.setFont(f(11.f));
+ status.setFont(f(12.f));
  setStatus("100 presets d'usine  /  40 Styles  /  biblioth\u00E8que utilisateur");
  updateLanguage(false);
  refresh(false);
@@ -123,6 +138,7 @@ BoomBrowser::~BoomBrowser(){
  for(auto& b:tagButtons)clear(b);
 }
 void BoomBrowser::setStatus(juce::String msg){
+ status.setTooltip(msg);
  status.setText(std::move(msg),juce::dontSendNotification);
 }
 void BoomBrowser::setMode(boom::browser::Mode requested){
@@ -134,6 +150,19 @@ void BoomBrowser::setMode(boom::browser::Mode requested){
 }
 void BoomBrowser::updateLanguage(bool en){
  english=en;
+ search.setTextToShowWhenEmpty(
+  en?"Search presets, Styles or tags...":"Rechercher par nom, Style ou tag...",
+  gold.withAlpha(.7f));
+ nameEdit.setTextToShowWhenEmpty(
+  en?"User preset name...":"Nom du preset utilisateur...",gold.withAlpha(.7f));
+ tagsEdit.setTextToShowWhenEmpty(
+  en?"Tags: warm, punch, voice...":"Tags : chaud, punch, voix...",gold.withAlpha(.7f));
+ const auto previousOrder=sortCombo.getSelectedId();
+ sortCombo.clear(juce::dontSendNotification);
+ sortCombo.addItem(en?"Factory order":"Ordre d'usine",1);
+ sortCombo.addItem(en?"Name A-Z":"Nom A-Z",2);
+ sortCombo.addItem(en?"Name Z-A":"Nom Z-A",3);
+ sortCombo.setSelectedId(previousOrder>0?previousOrder:1,juce::dontSendNotification);
  presets.setButtonText(en?"PRESETS":"PRESETS");
  styles.setButtonText(en?"STYLES":"STYLES");
  user.setButtonText(en?"USER":"UTILISATEUR");
@@ -147,11 +176,25 @@ void BoomBrowser::updateLanguage(bool en){
  import.setButtonText(en?"IMPORT":"IMPORTER");
  exportFile.setButtonText(en?"EXPORT":"EXPORTER");
  writeTags.setButtonText(en?"SET TAGS":"TAGS");
+ load.setTooltip(en?"Apply the selected master to the DSP":
+                    "Charger le master s\u00E9lectionn\u00E9 dans le moteur audio");
+ onlyFavorites.setTooltip(en?"Show starred factory presets or Styles":
+                             "Afficher uniquement les favoris");
+ viewList.setTooltip(en?"List view":"Affichage en liste");
+ viewGrid.setTooltip(en?"Grid view":"Affichage en grille");
+ save.setTooltip(en?"Save the current master as a user preset":
+                    "Enregistrer le master courant dans la biblioth\u00E8que utilisateur");
+ rename.setTooltip(en?"Rename the selected user preset":"Renommer le preset utilisateur");
+ remove.setTooltip(en?"Delete the selected user preset":"Supprimer le preset utilisateur");
+ import.setTooltip(en?"Import a .boom file":"Importer un fichier .boom");
+ exportFile.setTooltip(en?"Export the current user preset":"Exporter le preset utilisateur");
+ writeTags.setTooltip(en?"Save personal search tags":"Enregistrer les tags de recherche");
  for(int i=0;i<9;++i)
   tagButtons[static_cast<std::size_t>(i)].setButtonText(
    en?boom::browser::tagEn[static_cast<std::size_t>(i)]
      :boom::browser::tagFr[static_cast<std::size_t>(i)]);
- syncButtons();
+ categories.repaint();items.repaint();
+ syncButtons();repaint();
 }
 const BoomBrowser::Item* BoomBrowser::current()const{
  return chosen>=0&&chosen<static_cast<int>(rows.size())?
@@ -162,8 +205,7 @@ bool BoomBrowser::currentUser()const{
 }
 juce::String BoomBrowser::categoryName(const Item& e)const{
  if(e.user)return english?"User":"Utilisateur";
- return e.category>=0&&e.category<10?
-  juce::String(boom::categories[static_cast<std::size_t>(e.category)]):juce::String{};
+ return categoryDisplay(e.category,english);
 }
 juce::String BoomBrowser::styleName(const Item& e)const{
  if(e.user)return "USER";
@@ -238,9 +280,10 @@ void BoomBrowser::refresh(bool preserve){
    if(!boom::browser::hasTag(e.tags,tag))continue;
    const bool starred=mode==boom::browser::Mode::Styles?proc.isStyleFavorite(i):proc.isFavorite(i);
    if((favoritesFilter||category==10)&&!starred)continue;
-   const juce::String text(e.name),family=juce::String(boom::categories[static_cast<std::size_t>(e.category)]);
+   const juce::String text(e.name),family=categoryDisplay(e.category,english);
+   const juce::String englishFamily(boom::categories[static_cast<std::size_t>(e.category)]);
    const auto matching=needle.isEmpty()||text.containsIgnoreCase(needle)||
-     family.containsIgnoreCase(needle)||
+     family.containsIgnoreCase(needle)||englishFamily.containsIgnoreCase(needle)||
      juce::String(boom::styles()[static_cast<std::size_t>(e.style)].name).containsIgnoreCase(needle);
    if(!matching){
     bool tagMatch=false;
@@ -295,7 +338,7 @@ void BoomBrowser::CategoryModel::paintListBoxItem(
  if(row<0||row>=getNumRows())return;
  const juce::String name=row==0?(owner.english?"ALL":"TOUS"):row==11?
   (owner.english?"Favorites":"Favoris"):
-  juce::String(boom::browser::categoryShort[static_cast<std::size_t>(row-1)]);
+  categoryDisplay(row-1,owner.english);
  int count=0;
  if(row==0)count=owner.mode==boom::browser::Mode::Styles?40:
                     owner.mode==boom::browser::Mode::User?owner.proc.userPresetCount():100;
@@ -312,7 +355,7 @@ void BoomBrowser::CategoryModel::paintListBoxItem(
  const bool active=row==(owner.category==-1?0:owner.category==10?11:owner.category+1);
  g.setColour(active?burgundy:((row%2)?panel:bg));g.fillRect(0,0,w,h);
  if(active){g.setColour(gold);g.fillRect(0,0,3,h);}
- g.setColour(selected||active?ivory:gold);g.setFont(f(juce::jmin(13.f,h*.56f),active));
+ g.setColour(selected||active?ivory:gold);g.setFont(f(juce::jmin(13.5f,h*.60f),active));
  g.drawFittedText(name,8,0,w-40,h,juce::Justification::centredLeft,1);
  g.setColour(gold.withAlpha(.8f));
  g.drawText(juce::String(count),w-42,0,34,h,juce::Justification::centredRight);
@@ -322,7 +365,9 @@ int BoomBrowser::getNumRows(){
 }
 void BoomBrowser::selectedRowsChanged(int row){
  if(row<0||rows.empty())return;
- chosen=juce::jlimit(0,static_cast<int>(rows.size())-1,grid?row*2:row);
+ const int next=grid?row*2:row;
+ if(grid&&chosen>=0&&chosen/2==row)return;
+ chosen=juce::jlimit(0,static_cast<int>(rows.size())-1,next);
  resetDelete();
  if(currentUser()){
   nameEdit.setText(current()->name,juce::dontSendNotification);
@@ -359,17 +404,17 @@ void BoomBrowser::paintListBoxItem(
   g.setColour(active?burgundy:((row+c)%2?juce::Colour::fromRGB(37,20,23):panel));
   g.fillRoundedRectangle(cell,3.f);
   if(active){g.setColour(gold);g.drawRoundedRectangle(cell.reduced(.5f),3.f,1.2f);}
-  g.setColour(ivory);g.setFont(f(grid?13.f:14.f,active));
+  g.setColour(ivory);g.setFont(f(grid?13.5f:14.5f,active));
   const int x=int(cell.getX())+10;
   g.drawFittedText(item.name,x,int(cell.getY())+1,
                    int(cell.getWidth())-(grid?38:175),grid?27:24,
                    juce::Justification::centredLeft,1);
   if(grid){
-   g.setColour(gold.withAlpha(.73f));g.setFont(f(10.f));
+   g.setColour(gold.withAlpha(.73f));g.setFont(f(11.5f));
    g.drawFittedText(categoryName(item),x,int(cell.getY())+29,
                     int(cell.getWidth())-50,21,juce::Justification::centredLeft,1);
   }else{
-   g.setColour(gold.withAlpha(.8f));g.setFont(f(11.f));
+   g.setColour(gold.withAlpha(.8f));g.setFont(f(11.5f));
    g.drawFittedText(categoryName(item),x+int(cell.getWidth())*.48f,
                     int(cell.getY())+2,int(cell.getWidth())*.25f,24,
                     juce::Justification::centredLeft,1);

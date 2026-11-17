@@ -1,15 +1,16 @@
 #include "PluginEditor.h"
+#include "BoomUiTheme.h"
 #include <algorithm>
 #include <cmath>
 
 namespace {
-const auto ivory=juce::Colour::fromRGB(246,228,190);
-const auto gold=juce::Colour::fromRGB(223,185,124);
-const auto copper=juce::Colour::fromRGB(191,96,78);
-const auto crimson=juce::Colour::fromRGB(113,26,36);
-const auto dark=juce::Colour::fromRGB(21,10,13);
+const auto ivory=boom::ui::theme::ivory();
+const auto gold=boom::ui::theme::gold();
+const auto copper=boom::ui::theme::copper();
+const auto crimson=boom::ui::theme::active();
+const auto dark=boom::ui::theme::background();
 juce::Font font(float size,bool heavy=false){
- return juce::Font(juce::FontOptions(size,heavy?juce::Font::bold:juce::Font::plain));
+ return boom::ui::theme::font(size,heavy);
 }
 juce::String formatDb(float v){return v<=-90.f?" - ":juce::String(v,1);}
 }
@@ -161,7 +162,7 @@ void BoomAudioProcessorEditor::paintOther(juce::Graphics& g){
  g.fillRoundedRectangle(48.f,107.f,1550.f,230.f,5.f);
  g.setColour(copper);
  g.drawRoundedRectangle(48.f,107.f,1550.f,230.f,5.f,1.2f);
- g.setColour(gold);g.setFont(font(17,true));
+ g.setColour(gold);g.setFont(font(19.f,true));
  const bool meters=page==Page::meters,settings=page==Page::settings;
  g.drawText(meters?"MESURES DE PR\u00C9CISION":
   settings?"R\u00C9GLAGES DE MASTERING":"GUIDE DE LA CONSOLE BOOM",
@@ -190,10 +191,10 @@ void BoomAudioProcessorEditor::paintOther(juce::Graphics& g){
    const int x=x0+col*(cellW+gapX),y=y0+row*70;
    g.setColour(juce::Colour::fromRGB(43,21,22));
    g.fillRoundedRectangle(float(x),float(y),float(cellW),float(cellH),3.f);
-   g.setColour(gold);g.setFont(font(10,true));
+   g.setColour(gold);g.setFont(font(11.5f,true));
    g.drawText(vals[i].title,x+7,y+5,cellW-14,17,juce::Justification::centredLeft);
    float value=vals[i].linear?boom::gainToDb(vals[i].value):vals[i].value;
-   g.setColour(ivory);g.setFont(font(19,true));
+   g.setColour(ivory);g.setFont(font(19.f,true));
    g.drawFittedText(formatDb(value)+" "+vals[i].unit,x+7,y+24,cellW-14,24,
                     juce::Justification::centredRight,1);
   }
@@ -210,14 +211,14 @@ void BoomAudioProcessorEditor::paintOther(juce::Graphics& g){
    {"SATURATION","colorDrive",93,260,100.f," %"}
   };
   for(const auto& s:settingsFields){
-   g.setColour(gold);g.setFont(font(12,true));
+   g.setColour(gold);g.setFont(font(12.5f,true));
    g.drawText(s.title,s.x,s.y,304,19,juce::Justification::centredLeft);
    paintReading(g,{float(s.x),float(s.y+22),215.f,29.f},
                 juce::String(read(s.parameter)*s.scale,1)+s.unit);
   }
   const char* modes[]={"TRANSPARENT","PUNCH","LOUD"};
   const int chosen=juce::jlimit(0,2,int(read("limitMode")+.5f));
-  g.setColour(gold);g.setFont(font(12,true));
+  g.setColour(gold);g.setFont(font(12.5f,true));
   g.drawText("MODE LIMITEUR",443,260,310,19,juce::Justification::centredLeft);
   paintReading(g,{443,282,215,29},modes[chosen]);
   g.setColour(gold);g.drawText("LIEN TRIMS G/D",793,260,310,19,
@@ -227,7 +228,7 @@ void BoomAudioProcessorEditor::paintOther(juce::Graphics& g){
                               juce::Justification::centredLeft);
   paintReading(g,{1143,282,215,29},english?"ENGLISH":"FRAN\u00C7AIS");
  }else{
-  g.setColour(ivory);g.setFont(font(16));
+  g.setColour(ivory);g.setFont(font(16.f));
   g.drawFittedText(
    "1. Choisir un Style puis un des 100 presets.\n"
    "2. Ajuster INPUT DRIVE, les 5 bandes EQ et PUSH.\n"

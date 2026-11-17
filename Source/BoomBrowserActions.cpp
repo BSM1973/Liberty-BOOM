@@ -1,14 +1,15 @@
 #include "BoomBrowser.h"
+#include "BoomUiTheme.h"
 #include <algorithm>
 
 namespace {
-const auto gold=juce::Colour::fromRGB(224,184,119);
-const auto ivory=juce::Colour::fromRGB(244,224,187);
-const auto bronze=juce::Colour::fromRGB(174,89,70);
-const auto dark=juce::Colour::fromRGB(23,10,13);
-const auto burgundy=juce::Colour::fromRGB(108,26,38);
+const auto gold=boom::ui::theme::gold();
+const auto ivory=boom::ui::theme::ivory();
+const auto bronze=boom::ui::theme::copper();
+const auto dark=boom::ui::theme::background();
+const auto burgundy=boom::ui::theme::active();
 juce::Font font(float size,bool strong=false){
- return juce::Font(juce::FontOptions(size,strong?juce::Font::bold:juce::Font::plain));
+ return boom::ui::theme::font(size,strong);
 }
 }
 void BoomBrowser::loadSelection(){
@@ -18,7 +19,7 @@ void BoomBrowser::loadSelection(){
  if(e->user)ok=proc.loadUserPreset(e->index);
  else if(mode==boom::browser::Mode::Styles)proc.loadStyle(e->index);
  else proc.loadFactoryPreset(e->index);
- setStatus(ok?" "+e->name+"  -  r\u00E9glages charg\u00E9s":"Chargement impossible");
+ setStatus(ok?e->name+" : r\u00E9glages charg\u00E9s":"Chargement impossible");
  repaint();
 }
 void BoomBrowser::toggleFavorite(){
@@ -43,7 +44,7 @@ void BoomBrowser::saveCurrent(){
   if(rows[static_cast<std::size_t>(i)].user&&rows[static_cast<std::size_t>(i)].index==saved){
    chosen=i;items.selectRow(grid?i/2:i);break;
   }
- setStatus(" Preset utilisateur sauvegard\u00E9 dans le projet DAW");
+ setStatus("Preset utilisateur sauvegard\u00E9 dans le projet DAW");
  syncButtons();repaint();
 }
 void BoomBrowser::renameCurrent(){
@@ -57,7 +58,7 @@ void BoomBrowser::renameCurrent(){
 void BoomBrowser::writeUserTags(){
  if(!currentUser()){setStatus("S\u00E9lectionne un preset utilisateur.");return;}
  const bool ok=proc.setUserPresetTags(current()->index,tagsEdit.getText());
- setStatus(ok?" Tags sauvegard\u00E9s dans le projet et le .boom":"Tags non enregistr\u00E9s");
+ setStatus(ok?"Tags sauvegard\u00E9s dans le projet et le .boom":"Tags non enregistr\u00E9s");
  if(ok)refresh();
 }
 void BoomBrowser::deleteCurrent(){
@@ -90,7 +91,7 @@ void BoomBrowser::importCurrent(){
     safe->search.clear();safe->refresh(false);
     safe->chosen=safe->rows.empty()?-1:static_cast<int>(safe->rows.size())-1;
     if(safe->chosen>=0)safe->items.selectRow(safe->grid?safe->chosen/2:safe->chosen);
-    safe->setStatus(" Preset .boom import\u00E9");
+    safe->setStatus("Preset .boom import\u00E9");
    }else safe->setStatus("Import refus\u00E9 : fichier incorrect ou biblioth\u00E8que pleine");
   });
 }
@@ -109,7 +110,7 @@ void BoomBrowser::exportCurrent(){
     const auto file=picker.getResult();
     if(file==juce::File{})return;
     const bool ok=safe->proc.exportUserPreset(index,file.withFileExtension(".boom"));
-    safe->setStatus(ok?" Preset et tags export\u00E9s":"\u00C9chec de l'export");
+    safe->setStatus(ok?"Preset et tags export\u00E9s":"\u00C9chec de l'export");
    });
 }
 void BoomBrowser::selectDelta(int delta){
@@ -151,7 +152,7 @@ void BoomBrowser::resized(){
  put(items,240,125,968,175);
  previewRect=scaleBox(1221,125,311,175);
  listRect=items.getBounds();
- put(status,16,307,219,29);
+ put(status,791,306,414,31);
  put(favorite,244,307,115,30);
  put(save,244,307,96,30);
  put(rename,347,307,103,30);
@@ -159,9 +160,9 @@ void BoomBrowser::resized(){
  put(import,566,307,102,30);
  put(exportFile,675,307,102,30);
  put(load,1217,307,316,30);
- put(nameEdit,1230,211,294,25);
- put(tagsEdit,1230,242,205,25);
- put(writeTags,1441,242,82,25);
+ put(nameEdit,1230,212,294,25);
+ put(tagsEdit,1230,261,205,25);
+ put(writeTags,1441,261,82,25);
  items.setRowHeight(juce::jmax(21,juce::roundToInt((grid?65.f:31.f)*getHeight()/345.f)));
  categories.setRowHeight(juce::jmax(19,juce::roundToInt(24.f*getHeight()/345.f)));
  syncButtons();
@@ -187,7 +188,7 @@ void BoomBrowser::paint(juce::Graphics& g){
  g.setColour(dark);g.fillRoundedRectangle(center.toFloat(),4.f);
  g.setColour(bronze.withAlpha(.42f));g.drawRoundedRectangle(center.toFloat().reduced(.5f),4.f,1.f);
  g.setColour(gold);g.setFont(font(15.f,true));
- g.drawFittedText("BOOM  /  BIBLIOTH\u00C8QUE DE MASTERING",scaleBox(19,10,290,28),
+ g.drawFittedText(english?"BOOM / LIBRARY":"BOOM / BIBLIOTH\u00C8QUE",scaleBox(19,10,290,28),
                   juce::Justification::centredLeft,1);
  g.setColour(gold.withAlpha(.9f));g.setFont(font(11.f));
  const auto total=mode==boom::browser::Mode::Styles?40:
@@ -200,35 +201,52 @@ void BoomBrowser::paint(juce::Graphics& g){
 }
 void BoomBrowser::paintPreview(juce::Graphics& g){
  const auto r=previewRect.toFloat();
- g.setColour(juce::Colour::fromRGB(23,11,14));g.fillRoundedRectangle(r,4.f);
- g.setColour(bronze.withAlpha(.75f));g.drawRoundedRectangle(r.reduced(.5f),4.f,1.f);
- auto put=[&](juce::String text,float x,float y,float w,float h,float size,
-              bool strong=false,bool centered=false){
-  g.setColour(strong?ivory:gold);g.setFont(font(size,strong));
-  g.drawFittedText(text,scaleBox(x,y,w,h),
-                   centered?juce::Justification::centred:
-                            juce::Justification::centredLeft,1);
+ g.setColour(dark);g.fillRoundedRectangle(r,4.f);
+ g.setColour(bronze.withAlpha(.76f));g.drawRoundedRectangle(r.reduced(.5f),4.f,1.f);
+ auto write=[&](const juce::String& content,float x,float y,float w,float h,
+                float size,bool bold=false,bool centered=false){
+  g.setColour(bold?ivory:gold);
+  g.setFont(font(size,bold));
+  g.drawFittedText(content,scaleBox(x,y,w,h),
+   centered?juce::Justification::centred:juce::Justification::centredLeft,1);
  };
+ auto rule=[&](float y){
+  const auto q=scaleBox(1232,y,290,1);
+  g.setColour(bronze.withAlpha(.45f));g.fillRect(q);
+ };
+ write(english?"SOUND PROFILE":"PROFIL SONORE",1232,129,290,17,11.f,true);
  const auto* item=current();
- put(english?"SOUND PROFILE":"PROFIL SONORE",1230,129,292,18,11,true);
  if(item==nullptr){
-  put(english?"No match. Change filters.":"Aucun r\u00E9sultat. Modifie les filtres.",
-      1230,164,291,43,12);
+  write(english?"No results. Change the search or filters.":
+                "Aucun r\u00E9sultat. Modifiez les filtres.",
+        1233,167,285,40,12.5f,false,true);
   return;
  }
- put(item->name,1230,152,286,26,19,true,true);
+ write(item->name,1231,148,292,29,19.f,true,true);
  if(mode==boom::browser::Mode::User){
-  put("USER  /  "+juce::String(proc.userPresetCount())+" presets",1230,184,287,19,11);
-  return;
+  write(english?"USER PRESET":"PRESET UTILISATEUR",1232,180,290,15,11.f);
+  rule(201);
+  write(english?"PRESET NAME":"NOM DU MASTER",1232,199,290,12,10.5f,true);
+  write(english?"CUSTOM TAGS":"TAGS PERSONNALIS\u00C9S",1232,246,290,12,10.5f,true);
+  return; // Native edit fields occupy y=212..238 and y=261..287.
  }
- put(categoryName(*item)+"   /   "+styleName(*item),1230,184,288,19,10);
- boom::Parameters p=item->index>=0?
-  (mode==boom::browser::Mode::Styles?boom::makeStyle(item->index):
-                                    boom::makePreset(item->index).params):boom::Parameters{};
- put("PUSH  "+juce::String(p.push,0)+" %    /    DRIVE "+
-     juce::String(p.inputDb,1)+" dB",1230,207,288,19,12,true);
- put("GLUE  "+juce::String(p.compRatio,2)+":1     CEILING "+
-     juce::String(p.ceilingDb,1)+" dBFS",1230,229,288,20,11);
- const auto all=tagsText(*item).upToFirstOccurrenceOf(", ",false,false);
- put("TAGS  "+all,1230,263,291,25,11);
+ write(categoryName(*item)+" / "+styleName(*item),
+       1232,179,290,19,11.f,false,true);
+ rule(203);
+ const auto params=mode==boom::browser::Mode::Styles?
+                  boom::makeStyle(item->index):
+                  boom::makePreset(item->index).params;
+ auto metric=[&](float x,float y,const juce::String& title,const juce::String& value){
+  write(title,x,y,66,19,10.5f);
+  write(value,x+68,y,76,19,12.f,true);
+ };
+ metric(1232,208,"DRIVE",juce::String(params.inputDb,1)+" dB");
+ metric(1380,208,"PUSH",juce::String(params.push,0)+" %");
+ metric(1232,232,"GLUE",juce::String(params.compRatio,2)+":1");
+ metric(1380,232,english?"CEILING":"PLAFOND",
+                   juce::String(params.ceilingDb,1)+" dBFS");
+ rule(257);
+ const auto tags=tagsText(*item);
+ write((english?"TAGS : ":"TAGS : ")+(tags.isEmpty()?"-":tags),
+       1232,267,290,24,11.5f);
 }

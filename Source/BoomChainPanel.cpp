@@ -1,16 +1,17 @@
 #include "BoomChainPanel.h"
+#include "BoomUiTheme.h"
 #include <algorithm>
 #include <cmath>
 
 namespace {
-const auto wood=juce::Colour::fromRGB(24,12,15);
-const auto charcoal=juce::Colour::fromRGB(37,19,22);
-const auto burgundy=juce::Colour::fromRGB(98,26,38);
-const auto copper=juce::Colour::fromRGB(179,94,72);
-const auto gold=juce::Colour::fromRGB(225,188,125);
-const auto ivory=juce::Colour::fromRGB(250,233,199);
+const auto wood=boom::ui::theme::background();
+const auto charcoal=boom::ui::theme::surface();
+const auto burgundy=boom::ui::theme::active();
+const auto copper=boom::ui::theme::copper();
+const auto gold=boom::ui::theme::gold();
+const auto ivory=boom::ui::theme::ivory();
 juce::Font font(float pts,bool bold=false){
- return juce::Font(juce::FontOptions(pts,bold?juce::Font::bold:juce::Font::plain));
+ return boom::ui::theme::font(pts,bold);
 }
 constexpr const char* namesFR[]={
  "ENTR\u00C9E","ANALOGIQUE","\u00C9GALISEUR","DE-ESSER",
@@ -35,7 +36,7 @@ void BoomChainPanel::CopperLook::drawButtonBackground(
 void BoomChainPanel::CopperLook::drawButtonText(
  juce::Graphics& g,juce::TextButton& b,bool,bool){
  g.setColour(b.isEnabled()?ivory:ivory.withAlpha(.5f));
- g.setFont(font(juce::jlimit(10.f,13.5f,float(b.getHeight())*.43f),b.getToggleState()));
+ g.setFont(font(juce::jlimit(11.f,14.f,float(b.getHeight())*.46f),b.getToggleState()));
  g.drawFittedText(b.getButtonText(),b.getLocalBounds().reduced(3,2),
                   juce::Justification::centred,1);
 }
@@ -175,7 +176,7 @@ void BoomChainPanel::addRotary(
  c->label.setText(title,juce::dontSendNotification);
  c->label.setJustificationType(juce::Justification::centred);
  c->label.setColour(juce::Label::textColourId,ivory);
- c->label.setFont(font(13.f,true));
+ c->label.setFont(font(13.5f,true));
  c->slider.setSliderStyle(juce::Slider::RotaryHorizontalVerticalDrag);
  c->slider.setRotaryParameters(juce::MathConstants<float>::pi*1.20f,
                                juce::MathConstants<float>::pi*2.80f,true);
@@ -206,7 +207,7 @@ void BoomChainPanel::addChoice(
  c->module=module;
  c->label.setText(title,juce::dontSendNotification);
  c->label.setJustificationType(juce::Justification::centred);
- c->label.setFont(font(13.f,true));
+ c->label.setFont(font(13.5f,true));
  c->label.setColour(juce::Label::textColourId,ivory);
  int index=1;
  for(auto v:values)c->box.addItem(juce::String(v),index++);

@@ -31,7 +31,7 @@ assert 'favorite.setToggleState(starred,juce::dontSendNotification)' in browser
 assert '"FAV"' in browser, "Favorites remain visible without a star font"
 assert '"★"' not in browser and '"☆"' not in browser
 preview=(root/"Source/BoomBrowserActions.cpp").read_text(encoding="utf-8")
-assert 'put(item->name,1230,152,286,26,19,true,true)' in preview
+assert 'write(item->name,1231,148,292,29,19.f,true,true)' in preview
 assert 'centered?juce::Justification::centred' in preview
 chain=(root/"Source/BoomChainPanel.cpp").read_text(encoding="utf-8")
 assert r'"\u00C9GALISEUR"' in chain

@@ -1,16 +1,17 @@
 #include "PluginEditor.h"
+#include "BoomUiTheme.h"
 #include <BinaryData.h>
 #include <algorithm>
 #include <cmath>
 
 namespace {
-const auto ivory=juce::Colour::fromRGB(248,228,191);
-const auto gold=juce::Colour::fromRGB(228,192,133);
-const auto copper=juce::Colour::fromRGB(189,95,74);
-const auto crimson=juce::Colour::fromRGB(110,22,35);
-const auto dark=juce::Colour::fromRGB(22,10,13);
+const auto ivory=boom::ui::theme::ivory();
+const auto gold=boom::ui::theme::gold();
+const auto copper=boom::ui::theme::copper();
+const auto crimson=boom::ui::theme::active();
+const auto dark=boom::ui::theme::background();
 juce::Font font(float size,bool bold=false){
- return juce::Font(juce::FontOptions(size,bold?juce::Font::bold:juce::Font::plain));
+ return boom::ui::theme::font(size,bold);
 }
 constexpr float chainCX[]={236,503,663,822,981,1141,1425};
 constexpr float chainCY[]={629,744,744,744,744,744,629};
@@ -103,7 +104,7 @@ void BoomAudioProcessorEditor::paintSkin(juce::Graphics& g){
  }else{
   g.fillAll(juce::Colour::fromRGB(33,10,16));
   g.setColour(ivory);g.setFont(font(26,true));
-  g.drawText("BOOM  -  référence graphique manquante",50,40,artWidth()-100,55,
+  g.drawText("BOOM  -  r\u00E9f\u00E9rence graphique manquante",50,40,artWidth()-100,55,
              juce::Justification::centred);
  }
 }
