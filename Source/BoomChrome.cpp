@@ -1,5 +1,6 @@
 #include "BoomChrome.h"
 #include "BoomUiTheme.h"
+#include "BoomSafeText.h"
 #include <algorithm>
 #include <cmath>
 
@@ -15,7 +16,7 @@ juce::Font makeFont(float size,bool strong=false){
 void textIn(juce::Graphics& g,const juce::String& text,juce::Rectangle<int> r,
             float size,bool heavy,juce::Colour colour,juce::Justification why=juce::Justification::centred){
  g.setColour(colour);g.setFont(makeFont(size,heavy));
- g.drawFittedText(text,r,why,1);
+ g.drawFittedText(boom::ui::text::safeUpperText(text),r,why,1);
 }
 }
 void BoomChrome::BrassLook::drawButtonBackground(
@@ -47,7 +48,7 @@ void BoomChrome::BrassLook::drawButtonText(
  const float size=big?juce::jlimit(12.f,21.f,float(b.getHeight())*.56f):
    juce::jlimit(10.5f,14.f,float(b.getHeight())*.47f);
  g.setFont(makeFont(size,b.getToggleState()||big));
- g.drawFittedText(b.getButtonText(),b.getLocalBounds().reduced(5,1),
+ g.drawFittedText(boom::ui::text::safeUpperText(b.getButtonText()),b.getLocalBounds().reduced(5,1),
                   juce::Justification::centred,1);
 }
 BoomChrome::BoomChrome(Area which,OnCommand action)
@@ -58,6 +59,8 @@ BoomChrome::BoomChrome(Area which,OnCommand action)
   wireButton(headerButtons[1],Command::Previous,"<");
   wireButton(headerButtons[2],Command::Preset,"");
   wireButton(headerButtons[3],Command::Next,">");
+  wireButton(headerButtons[4],Command::Language,"LANGUE : FR");
+  headerButtons[4].setName("headerLanguage");
   headerButtons[0].setName("headerStyle");
   headerButtons[2].setName("headerPreset");
  }else{
@@ -85,7 +88,8 @@ void BoomChrome::wireButton(juce::TextButton& button,Command id,juce::String nam
 }
 void BoomChrome::setNames(const juce::String& style,const juce::String& preset){
  if(styleName==style&&presetName==preset)return;
- styleName=style;presetName=preset;
+ styleName=boom::ui::text::safeUpperText(style);
+ presetName=boom::ui::text::safeUpperText(preset);
  if(area==Area::Header){
   headerButtons[0].setButtonText(styleName);
   headerButtons[2].setButtonText(presetName);
@@ -103,8 +107,12 @@ void BoomChrome::updateButtons(){
                                    "Parcourir les 40 Styles de mastering");
   headerButtons[2].setTooltip(english?"Browse the 100 factory presets":
                                    "Parcourir les 100 presets d'usine");
-  headerButtons[1].setTooltip(english?"Previous preset":"Preset pr\u00E9c\u00E9dent");
+  headerButtons[1].setTooltip(english?"Previous preset":"Preset precedent");
   headerButtons[3].setTooltip(english?"Next preset":"Preset suivant");
+  headerButtons[4].setButtonText(english?"LANG : EN":"LANGUE : FR");
+  headerButtons[4].setTooltip(english?"Choose language: French or English":
+                                      "Choisir la langue : Francais ou anglais");
+  headerButtons[4].setToggleState(true,juce::dontSendNotification);
   return;
  }
  const auto local=[this](const char* fr,const char* en){return juce::String(english?en:fr);};
@@ -156,6 +164,11 @@ void BoomChrome::resized(){
   headerButtons[2].setBounds(rightX+arrowW+gap,y,
                              std::max(80,rightW-arrowW*2-gap*2),bh);
   headerButtons[3].setBounds(rightX+rightW-arrowW,y,arrowW,bh);
+  // Separate language selector in the empty top-right gap, never on BOOM text.
+  const int langX=juce::roundToInt(.662f*w);
+  const int langW=juce::roundToInt(.084f*w);
+  const int langY=juce::roundToInt(.12f*h);
+  headerButtons[4].setBounds(langX,langY,langW,juce::jlimit(22,32,juce::roundToInt(.30f*h)));
   return;
  }
  // Fixed design proportions are scaled uniformly for 13-inch screens.

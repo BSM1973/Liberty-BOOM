@@ -1,5 +1,6 @@
 #include "BoomBrowser.h"
 #include "BoomUiTheme.h"
+#include "BoomSafeText.h"
 #include <algorithm>
 
 namespace {
@@ -173,7 +174,7 @@ void BoomBrowser::paintCapsule(
  g.setColour(active?burgundy:dark);g.fillRoundedRectangle(r,6.f);
  g.setColour(active?gold:bronze.withAlpha(.6f));g.drawRoundedRectangle(r,6.f,1.f);
  g.setColour(active?ivory:gold);g.setFont(font(11.f,active));
- g.drawFittedText(label,rectangle.reduced(5,1),juce::Justification::centred,1);
+ g.drawFittedText(boom::ui::text::safeUpperText(label),rectangle.reduced(5,1),juce::Justification::centred,1);
 }
 void BoomBrowser::paint(juce::Graphics& g){
  auto area=getLocalBounds().toFloat();
@@ -188,7 +189,7 @@ void BoomBrowser::paint(juce::Graphics& g){
  g.setColour(dark);g.fillRoundedRectangle(center.toFloat(),4.f);
  g.setColour(bronze.withAlpha(.42f));g.drawRoundedRectangle(center.toFloat().reduced(.5f),4.f,1.f);
  g.setColour(gold);g.setFont(font(15.f,true));
- g.drawFittedText(english?"BOOM / LIBRARY":"BOOM / BIBLIOTH\u00C8QUE",scaleBox(19,10,290,28),
+ g.drawFittedText(english?"BOOM / LIBRARY":"BOOM / BIBLIOTHEQUE",scaleBox(19,10,290,28),
                   juce::Justification::centredLeft,1);
  g.setColour(gold.withAlpha(.9f));g.setFont(font(11.f));
  const auto total=mode==boom::browser::Mode::Styles?40:
@@ -207,7 +208,7 @@ void BoomBrowser::paintPreview(juce::Graphics& g){
                 float size,bool bold=false,bool centered=false){
   g.setColour(bold?ivory:gold);
   g.setFont(font(size,bold));
-  g.drawFittedText(content,scaleBox(x,y,w,h),
+  g.drawFittedText(boom::ui::text::safeUpperText(content),scaleBox(x,y,w,h),
    centered?juce::Justification::centred:juce::Justification::centredLeft,1);
  };
  auto rule=[&](float y){

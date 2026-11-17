@@ -29,6 +29,8 @@ jobs:
         run: python3 Tests/ui_phase2_contract.py
       - name: Verify phase 3 focus, hover, margins and 13-inch layouts
         run: python3 Tests/ui_phase3_contract.py
+      - name: Check native upper language chooser and clean ASCII display
+        run: python3 Tests/upper_text_language_contract.py
       - name: Configure dependency-free DSP tests
         run: cmake -S . -B build-dsp -DBOOM_DSP_ONLY=ON -DCMAKE_BUILD_TYPE=Release
       - name: Build DSP tests

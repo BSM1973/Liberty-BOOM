@@ -32,7 +32,7 @@ assert "categoriesFR[10]" in browser and "categoriesEN[10]" in browser
 assert "categoryDisplay(e.category,english)" in browser
 assert "englishFamily.containsIgnoreCase(needle)" in browser
 assert "sortCombo.clear(juce::dontSendNotification)" in browser
-assert "status.setTooltip(msg)" in browser
+assert "status.setTooltip(visible)" in browser
 assert "load.setTooltip" in browser
 assert 'if(grid&&chosen>=0&&chosen/2==row)return' in browser
 assert 'put(status,791,306,414,31)' in preview

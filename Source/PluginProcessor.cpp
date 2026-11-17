@@ -65,7 +65,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout BoomAudioProcessor::paramete
  addBool(l,"mono","Mono Monitoring");
  addBool(l,"bypass","Global Bypass");
  addBool(l,"meterInput","VU Meter Input");
- addChoice(l,"language","Language",{"Français","English"});
+ addChoice(l,"language","Language",{"FR","EN"});
  return l;
 }
 

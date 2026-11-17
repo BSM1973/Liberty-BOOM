@@ -30,7 +30,7 @@ private:
  Area area;
  OnCommand command;
  BrassLook look;
- std::array<juce::TextButton,4> headerButtons;
+ std::array<juce::TextButton,5> headerButtons;
  std::array<juce::TextButton,12> toolbarButtons;
  juce::String styleName,presetName;
  bool english=false,levelEnabled=false;

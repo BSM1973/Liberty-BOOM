@@ -1,5 +1,6 @@
 #include "BoomBrowser.h"
 #include "BoomUiTheme.h"
+#include "BoomSafeText.h"
 #include <algorithm>
 #include <array>
 
@@ -25,7 +26,7 @@ constexpr const char* categoriesEN[10]={
 };
 juce::String categoryDisplay(int index,bool english){
  if(index<0||index>=10)return {};
- return english?categoriesEN[index]:categoriesFR[index];
+ return boom::ui::text::safeUpperText(english?categoriesEN[index]:categoriesFR[index]);
 }
 }
 
@@ -53,14 +54,14 @@ void BoomBrowser::BrassButtons::drawButtonText(
  g.setColour(b.isEnabled()?ivory:ivory.withAlpha(.4f));
  const auto height=static_cast<float>(b.getHeight());
  g.setFont(f(juce::jlimit(11.f,15.f,height*.47f),b.getToggleState()));
- g.drawFittedText(b.getButtonText(),b.getLocalBounds().reduced(5,2),
+ g.drawFittedText(boom::ui::text::safeUpperText(b.getButtonText()),b.getLocalBounds().reduced(5,2),
                   juce::Justification::centred,1);
 }
 void BoomBrowser::styleButton(juce::TextButton& b,juce::String text,
                               std::function<void()> callback){
  b.setLookAndFeel(&buttonsLook);
  b.setWantsKeyboardFocus(true);
- b.setButtonText(std::move(text));
+ b.setButtonText(boom::ui::text::safeUpperText(text));
  b.setTooltip(b.getButtonText());
  b.setMouseCursor(juce::MouseCursor::PointingHandCursor);
  b.onClick=std::move(callback);
@@ -154,8 +155,9 @@ BoomBrowser::~BoomBrowser(){
  for(auto& b:tagButtons)clear(b);
 }
 void BoomBrowser::setStatus(juce::String msg){
- status.setTooltip(msg);
- status.setText(std::move(msg),juce::dontSendNotification);
+ const auto visible=boom::ui::text::safeUpperText(msg);
+ status.setTooltip(visible);
+ status.setText(visible,juce::dontSendNotification);
 }
 void BoomBrowser::setMode(boom::browser::Mode requested){
  mode=requested;category=-1;tag=boom::browser::Tag::All;
@@ -209,6 +211,8 @@ void BoomBrowser::updateLanguage(bool en){
   tagButtons[static_cast<std::size_t>(i)].setButtonText(
    en?boom::browser::tagEn[static_cast<std::size_t>(i)]
      :boom::browser::tagFr[static_cast<std::size_t>(i)]);
+ setStatus(en?"100 factory presets / 40 Styles / user library":
+              "100 presets d'usine / 40 Styles / bibliotheque utilisateur");
  categories.repaint();items.repaint();
  syncButtons();repaint();
 }
@@ -226,10 +230,10 @@ juce::String BoomBrowser::categoryName(const Item& e)const{
 juce::String BoomBrowser::styleName(const Item& e)const{
  if(e.user)return "USER";
  return e.style>=0&&e.style<40?
-  juce::String(boom::styles()[static_cast<std::size_t>(e.style)].name):juce::String{};
+  boom::ui::text::safeUpperText(juce::String(boom::styles()[static_cast<std::size_t>(e.style)].name)):juce::String{};
 }
 juce::String BoomBrowser::tagsText(const Item& e)const{
- if(e.user)return proc.userPresetTags(e.index);
+ if(e.user)return boom::ui::text::safeUpperText(proc.userPresetTags(e.index));
  juce::String result;
  for(int i=1;i<9;++i)
   if((e.tags & boom::browser::bit(static_cast<boom::browser::Tag>(i)))!=0){
@@ -237,7 +241,7 @@ juce::String BoomBrowser::tagsText(const Item& e)const{
    result+=english?boom::browser::tagEn[static_cast<std::size_t>(i)]
                   :boom::browser::tagFr[static_cast<std::size_t>(i)];
   }
- return result;
+ return boom::ui::text::safeUpperText(result);
 }
 void BoomBrowser::syncButtons(){
  presets.setToggleState(mode==boom::browser::Mode::Presets,juce::dontSendNotification);
@@ -380,7 +384,7 @@ void BoomBrowser::CategoryModel::paintListBoxItem(
   g.drawRect(1,1,w-2,h-2,1);
  }
  g.setColour(selected||active?ivory:gold);g.setFont(f(juce::jmin(13.5f,h*.60f),active));
- g.drawFittedText(name,8,0,w-40,h,juce::Justification::centredLeft,1);
+ g.drawFittedText(boom::ui::text::safeUpperText(name),8,0,w-40,h,juce::Justification::centredLeft,1);
  g.setColour(gold.withAlpha(.8f));
  g.drawText(juce::String(count),w-42,0,34,h,juce::Justification::centredRight);
 }
@@ -439,7 +443,7 @@ void BoomBrowser::paintListBoxItem(
   }
   g.setColour(ivory);g.setFont(f(grid?13.5f:14.5f,active));
   const int x=int(cell.getX())+10;
-  g.drawFittedText(item.name,x,int(cell.getY())+1,
+  g.drawFittedText(boom::ui::text::safeUpperText(item.name),x,int(cell.getY())+1,
                    int(cell.getWidth())-(grid?38:175),grid?27:24,
                    juce::Justification::centredLeft,1);
   if(grid){

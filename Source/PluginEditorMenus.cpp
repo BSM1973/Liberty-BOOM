@@ -1,5 +1,6 @@
 #include "PluginEditor.h"
 #include "BoomBrowser.h"
+#include "BoomChainPanel.h"
 #include <algorithm>
 
 namespace {
@@ -131,14 +132,18 @@ void BoomAudioProcessorEditor::openColorMenu(){
 }
 void BoomAudioProcessorEditor::openLanguageMenu(){
  juce::PopupMenu menu;
- menu.addItem(1,"Fran\u00E7ais",true,read("language")<.5f);
- menu.addItem(2,"English",true,read("language")>.5f);
+ menu.addItem(1,"FR - Francais",true,read("language")<.5f);
+ menu.addItem(2,"EN - English",true,read("language")>.5f);
  juce::Component::SafePointer<BoomAudioProcessorEditor> self(this);
  menu.showMenuAsync(popupOptions(this),[self](int value){
-  if(self!=nullptr&&value>0){
-   self->write("language",float(value-1));
-   self->english=value==2;
-  }
+  if(self==nullptr||value<1||value>2)return;
+  // Preserve parameter ID and choice indices 0/1 in saved DAW projects.
+  self->write("language",float(value-1));
+  self->english=value==2;
+  if(self->nativeBrowser!=nullptr)self->nativeBrowser->updateLanguage(self->english);
+  if(self->nativeChain!=nullptr)self->nativeChain->setEnglish(self->english);
+  self->refreshChrome();
+  self->repaint();
  });
 }
 void BoomAudioProcessorEditor::openTrimsMenu(){

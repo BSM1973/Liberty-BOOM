@@ -1,5 +1,6 @@
 #include "BoomChainPanel.h"
 #include "BoomUiTheme.h"
+#include "BoomSafeText.h"
 #include <algorithm>
 #include <cmath>
 
@@ -42,7 +43,7 @@ void BoomChainPanel::CopperLook::drawButtonText(
  juce::Graphics& g,juce::TextButton& b,bool,bool){
  g.setColour(b.isEnabled()?ivory:ivory.withAlpha(.5f));
  g.setFont(font(juce::jlimit(11.f,14.f,float(b.getHeight())*.46f),b.getToggleState()));
- g.drawFittedText(b.getButtonText(),b.getLocalBounds().reduced(3,2),
+ g.drawFittedText(boom::ui::text::safeUpperText(b.getButtonText()),b.getLocalBounds().reduced(3,2),
                   juce::Justification::centred,1);
 }
 void BoomChainPanel::CopperLook::drawRotarySlider(
@@ -87,14 +88,14 @@ void BoomChainPanel::CopperLook::drawToggleButton(
  g.fillEllipse(bounds.getX()+7,cy-4,8.f,8.f);
  g.setColour(ivory);
  g.setFont(font(juce::jlimit(10.f,12.5f,float(button.getHeight())*.45f),enabled));
- g.drawFittedText(button.getButtonText(),
+ g.drawFittedText(boom::ui::text::safeUpperText(button.getButtonText()),
                   juce::Rectangle<int>(int(bounds.getX()+20),int(bounds.getY()),
                                        int(bounds.getWidth()-24),int(bounds.getHeight())),
                   juce::Justification::centredLeft,1);
 }
 juce::String BoomChainPanel::moduleName(int index,bool en){
  if(index<0||index>=7)return {};
- return en?namesEN[index]:namesFR[index];
+ return boom::ui::text::safeUpperText(en?namesEN[index]:namesFR[index]);
 }
 BoomChainPanel::BoomChainPanel(BoomAudioProcessor& p):processor(p){
  setOpaque(true);
@@ -185,7 +186,7 @@ void BoomChainPanel::addRotary(
  int module,const char* parameter,const char* title,float multiplier,const char* unit,int digits){
  auto c=std::make_unique<RotaryControl>();
  c->module=module;
- c->label.setText(title,juce::dontSendNotification);
+ c->label.setText(boom::ui::text::safeUpperText(title),juce::dontSendNotification);
  c->label.setJustificationType(juce::Justification::centred);
  c->label.setColour(juce::Label::textColourId,ivory);
  c->label.setFont(font(13.5f,true));
@@ -210,7 +211,7 @@ void BoomChainPanel::addRotary(
      processor.state().getParameter(parameter)->getDefaultValue()):0.f);
  c->attachment=std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
    processor.state(),parameter,c->slider);
- c->slider.setTooltip(juce::String(title)+"  -  "+juce::String(parameter));
+ c->slider.setTooltip(boom::ui::text::safeUpperText(title)+"  -  "+juce::String(parameter));
  addAndMakeVisible(c->label);addAndMakeVisible(c->slider);
  rotaries.push_back(std::move(c));
 }
@@ -218,7 +219,7 @@ void BoomChainPanel::addChoice(
  int module,const char* parameter,const char* title,std::initializer_list<const char*> values){
  auto c=std::make_unique<ChoiceControl>();
  c->module=module;
- c->label.setText(title,juce::dontSendNotification);
+ c->label.setText(boom::ui::text::safeUpperText(title),juce::dontSendNotification);
  c->label.setJustificationType(juce::Justification::centred);
  c->label.setFont(font(13.5f,true));
  c->label.setColour(juce::Label::textColourId,ivory);
@@ -239,12 +240,12 @@ void BoomChainPanel::addToggle(
  auto t=std::make_unique<ToggleControl>();
  t->module=module;
  t->primary=primary;
- t->button.setButtonText(title);
+ t->button.setButtonText(boom::ui::text::safeUpperText(title));
  t->button.setLookAndFeel(&look);
  t->button.setWantsKeyboardFocus(true);
  t->button.setColour(juce::ToggleButton::textColourId,ivory);
  t->button.setMouseCursor(juce::MouseCursor::PointingHandCursor);
- t->button.setTooltip(juce::String(title)+"  -  "+juce::String(parameter));
+ t->button.setTooltip(boom::ui::text::safeUpperText(title)+"  -  "+juce::String(parameter));
  t->attachment=std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(
    processor.state(),parameter,t->button);
  addAndMakeVisible(t->button);
@@ -285,7 +286,7 @@ void BoomChainPanel::setEnglish(bool en){
  english=en;
  for(int i=0;i<7;++i)
   tabButtons[static_cast<std::size_t>(i)].setButtonText(moduleName(i,english));
- resetButton.setButtonText(english?"RESET MODULE":"R\u00C9INITIALISER");
+ resetButton.setButtonText(english?"RESET MODULE":"REINITIALISER");
  updateVisibility();
 }
 void BoomChainPanel::syncFromHost(){
