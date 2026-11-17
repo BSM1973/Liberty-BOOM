@@ -100,8 +100,10 @@ void BoomChrome::updateButtons(){
  for(size_t i=0;i<toolbarButtons.size();++i)
   if(toolbarButtons[i].getButtonText()!=labels[i])
    toolbarButtons[i].setButtonText(labels[i]);
+ constexpr int pagesForButtons[]={0,2,3,4}; // Chain, Meters, Settings, Help
  for(int i=0;i<4;++i)
-  toolbarButtons[static_cast<size_t>(i)].setToggleState(activePage==i,juce::dontSendNotification);
+  toolbarButtons[static_cast<size_t>(i)].setToggleState(activePage==pagesForButtons[i],
+                                                        juce::dontSendNotification);
  toolbarButtons[5].setToggleState(selectedRecall==0,juce::dontSendNotification);
  toolbarButtons[6].setToggleState(selectedRecall==1,juce::dontSendNotification);
  toolbarButtons[11].setToggleState(levelEnabled,juce::dontSendNotification);

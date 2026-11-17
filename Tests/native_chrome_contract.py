@@ -36,6 +36,9 @@ assert 'juce::Justification::centred' in chrome
 assert 'headerButtons[0].setButtonText(styleName)' in chrome
 assert 'headerButtons[2].setButtonText(presetName)' in chrome
 assert "juce::TextButton" in chrome_h
+assert "pagesForButtons" in chrome and "0,2,3,4" in chrome, (
+    "Native navigation buttons must map to Chain/Meters/Settings/Help, "
+    "skipping the Browser page enum")
 assert "onClick=" in chrome
 
 required={
