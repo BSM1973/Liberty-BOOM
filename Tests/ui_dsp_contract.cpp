@@ -34,7 +34,7 @@ int main(){
  boom::Parameters p;
  p.colorBypass=true;p.eqBypass=true;p.deEssBypass=true;
  p.compBypass=true;p.limiterBypass=true;
- p.outPeakGuard=false;p.outputLevelComp=false;
+ p.outputPeakGuard=false;p.outputLevelComp=false;
  p.outputDb=6.f;p.outputBypass=false;
  const float amplified=render(engine,p);
  p.outputBypass=true;

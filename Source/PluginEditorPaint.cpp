@@ -205,13 +205,13 @@ void BoomAudioProcessorEditor::paintSwitch(
  const bool isBypass=id.endsWith("Bypass")||id=="outputBypass";
  const bool active=isBypass?read(z.id)<.5f:read(z.id)>.5f;
  if(isBypass){
-  // ACTIVE/OFF replaces the old static legend INSIDE its original button.
-  // The nearby power glyph remains part of the source engraving.
-  if(z.w>40.f && z.y<340.f){
+  // Active is the photograph's untouched ACTIF hardware switch.
+  // Only OFF needs to replace its printed text; do not draw a second button.
+  if(!active && z.w>40.f && z.y<340.f){
    const auto r=juce::Rectangle<float>(z.x+5,z.y+3,z.w-10,z.h-6);
    g.setColour(dark);g.fillRect(r);
-   g.setColour(active?gold:copper.withAlpha(.75f));g.setFont(font(10,true));
-   g.drawFittedText(active?"● ACTIF":"○ OFF",r.toNearestInt(),
+   g.setColour(copper);g.setFont(font(10,true));
+   g.drawFittedText("○ OFF",r.toNearestInt(),
                     juce::Justification::centred,1);
   }
   return;

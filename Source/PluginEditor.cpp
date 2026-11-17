@@ -20,12 +20,19 @@ bool in(juce::Point<float> p,float x,float y,float w,float h){
 
 BoomAudioProcessorEditor::BoomAudioProcessorEditor(BoomAudioProcessor& p)
  :AudioProcessorEditor(&p),processor(p){
- chainSkin=juce::ImageFileFormat::loadFrom(
-  BinaryData::boom_console_reference_jpg,
-  static_cast<std::size_t>(BinaryData::boom_console_reference_jpgSize));
- browserSkin=juce::ImageFileFormat::loadFrom(
-  BinaryData::boom_browser_reference_jpg,
-  static_cast<std::size_t>(BinaryData::boom_browser_reference_jpgSize));
+ // Resources are discovered by original filename, not an assumed JUCE symbol.
+ // This is valid on MSVC and Apple Clang with JUCE 8 BinaryData generation.
+ for(int i=0;i<BinaryData::namedResourceListSize;++i){
+  const auto* resourceName=BinaryData::namedResourceList[i];
+  int count=0;
+  const auto* data=BinaryData::getNamedResource(resourceName,count);
+  if(data==nullptr||count<=0)continue;
+  const juce::String path(BinaryData::getNamedResourceOriginalFilename(resourceName));
+  if(path.containsIgnoreCase("console-reference"))
+   chainSkin=juce::ImageFileFormat::loadFrom(data,static_cast<std::size_t>(count));
+  else if(path.containsIgnoreCase("browser-reference"))
+   browserSkin=juce::ImageFileFormat::loadFrom(data,static_cast<std::size_t>(count));
+ }
  // Capture real knob faces from the approved source art before preparing meters.
  prepareFaces();
  english=read("language")>.5f;
