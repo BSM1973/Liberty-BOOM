@@ -1,5 +1,6 @@
 #include "PluginEditor.h"
 #include "BoomBrowser.h"
+#include "BoomChainPanel.h"
 #include <BinaryData.h>
 #include <algorithm>
 #include <cmath>
@@ -79,6 +80,9 @@ BoomAudioProcessorEditor::BoomAudioProcessorEditor(BoomAudioProcessor& p)
  nativeBrowser=std::make_unique<BoomBrowser>(processor,[this]{showPage(Page::chain);});
  addAndMakeVisible(*nativeBrowser);
  nativeBrowser->setVisible(false);
+ nativeChain=std::make_unique<BoomChainPanel>(processor);
+ addAndMakeVisible(*nativeChain);
+ nativeChain->setVisible(true);
  setWantsKeyboardFocus(true);
  setResizable(false,false);  // Keep the full console visible, without scrollbars.
  refreshResults();
@@ -116,12 +120,18 @@ void BoomAudioProcessorEditor::resized(){
   nativeBrowser->setVisible(page==Page::browser);
   if(page==Page::browser)nativeBrowser->toFront(false);
  }
+ if(nativeChain!=nullptr){
+  nativeChain->setBounds(canvasRect(47.f,98.f,1577.f,237.f));
+  nativeChain->setVisible(page==Page::chain);
+  if(page==Page::chain)nativeChain->toFront(false);
+ }
  if(editing.parameter.isNotEmpty())numericEdit.setVisible(false);
 }
 void BoomAudioProcessorEditor::showPage(Page target){
  endGesture();cancelNumeric();
  if(target==page)return;
  page=target;
+ if(page==Page::chain&&nativeChain!=nullptr)nativeChain->setEnglish(english);
  if(page==Page::browser && nativeBrowser!=nullptr){
   nativeBrowser->updateLanguage(english);
   nativeBrowser->refresh();
@@ -172,6 +182,9 @@ void BoomAudioProcessorEditor::beginGesture(const Zone& zone,const juce::MouseEv
  }
 }
 const boom::ui::Zone* BoomAudioProcessorEditor::zoneAt(juce::Point<float> p)const noexcept{
+ // The entire rack is owned by BoomChainPanel. Never forward hidden image
+ // hit boxes to the legacy editor: only live controls may change the DSP.
+ if(page==Page::chain && p.y>=96.f && p.y<342.f)return nullptr;
  if(page==Page::browser){
   for(const auto& z:boom::ui::browser)if(z.contains(p.x,p.y))return &z;
  }else{
@@ -370,7 +383,13 @@ void BoomAudioProcessorEditor::doAction(const Zone& zone,const juce::MouseEvent&
  if(id=="rowNext"){changeSelected(selectedRow+1);return;}
 }
 void BoomAudioProcessorEditor::timerCallback(){
- english=read("language")>.5f;
+ const bool newLanguage=read("language")>.5f;
+ if(newLanguage!=english){
+  english=newLanguage;
+  if(nativeChain!=nullptr)nativeChain->setEnglish(english);
+  if(nativeBrowser!=nullptr)nativeBrowser->updateLanguage(english);
+ }
+ if(nativeChain!=nullptr&&page==Page::chain)nativeChain->syncFromHost();
  const auto meter=processor.lastMeters();
  auto needleDb=[](float linear){
   return juce::jlimit(-20.f,3.f,

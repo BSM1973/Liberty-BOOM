@@ -19,6 +19,8 @@ jobs:
         run: python3 Tests/ui_binding_contract.py
       - name: Verify native preset browser bindings and persistence
         run: python3 Tests/browser_native_contract.py
+      - name: Verify tabbed mastering chain UI and parameter connections
+        run: python3 Tests/mastering_chain_contract.py
       - name: Configure dependency-free DSP tests
         run: cmake -S . -B build-dsp -DBOOM_DSP_ONLY=ON -DCMAKE_BUILD_TYPE=Release
       - name: Build DSP tests

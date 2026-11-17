@@ -77,7 +77,7 @@ void BoomAudioProcessorEditor::paint(juce::Graphics& g){
  g.addTransform(juce::AffineTransform::scale(
   float(getWidth())/artWidth(),float(getHeight())/artHeight()));
  paintSkin(g);
- if(page==Page::chain)paintChain(g);
+ // Native JUCE chain tab view paints over the legacy rack with no duplicate numbers.
  // The native BrowserComponent paints and handles its own panel.
  if(page==Page::meters||page==Page::settings||page==Page::help)paintOther(g);
  paintKnobs(g);

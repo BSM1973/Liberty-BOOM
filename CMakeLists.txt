@@ -48,6 +48,7 @@ target_sources(BOOM PRIVATE
  Source/PluginEditor.h Source/PluginEditor.cpp Source/PluginEditorPaint.cpp
  Source/PluginEditorPanels.cpp Source/PluginEditorMenus.cpp Source/BOOMUIMap.h
  Source/BoomBrowserCatalog.h Source/BoomBrowser.h Source/BoomBrowser.cpp Source/BoomBrowserActions.cpp
+ Source/BoomChainPanel.h Source/BoomChainPanel.cpp
  Source/BoomDSP.h Source/LoudnessMeter.h Source/OversampledTube.h Source/FactoryLibrary.h)
 target_compile_definitions(BOOM PRIVATE JUCE_WEB_BROWSER=0 JUCE_USE_CURL=0 JUCE_VST3_CAN_REPLACE_VST2=0)
 target_link_libraries(BOOM PRIVATE
