@@ -28,6 +28,8 @@ struct Parameters {
  float limiterThreshold=-1.0f,ceilingDb=-1.0f,limiterReleaseMs=120.0f;
  int limiterMode=0;
  float outputDb=0.0f;
+ bool limiterAutoRelease=false,limiterStereoLink=true;
+ bool outputPeakGuard=true,outputLevelComp=false;
  bool colorBypass=false,eqBypass=false,deEssBypass=false,compBypass=false,limiterBypass=false;
  bool compStereoLink=true;
  bool bypass=false,monoMonitor=false;
@@ -84,9 +86,10 @@ public:
   dryDelay.assign(static_cast<std::size_t>(lookaheadSamples+OversampledTube4x::latency+1),std::array<float,2>{0,0});
   colorDelay.fill({0,0});colorPos=0;dryPos=0;
   for(auto& tube:tube4x)tube.prepare();
-  pos=0; releaseGain=1;wetBlend=1;monoBlend=0; compEnvelope={0,0};deessEnvelope=0;
+  pos=0; releaseGain={1.f,1.f};wetBlend=1;monoBlend=0; compEnvelope={0,0};deessEnvelope=0;
+  levelMatchInputPower=levelMatchOutputPower=0.f;levelMatchGain=1.f;
   eqBlend=colorBlend=deEssBlend=compBlend=limiterBlend=1;
-  limiterHold=0;inputTruePeak.prepare();loudness.prepare(fs);
+  limiterHold={0,0};inputTruePeak.prepare();for(auto& detector:independentTruePeak)detector.prepare();loudness.prepare(fs);
   inGain=outGain=inTrimL=inTrimR=colorOutGain=1; drive=0;push=0;smoothedDeEssFreq=6500;
   smoothedColorMix=0.4f;smoothedCompMix=1.0f;
   smoothedCompThreshold=-12.f;smoothedCompRatio=1.5f;smoothedCompMakeup=0.f;
@@ -110,6 +113,7 @@ public:
   const float aDynamics=static_cast<float>(1.0-std::exp(-1.0/(fs*0.012)));
   const float aVu=static_cast<float>(1.0-std::exp(-1.0/(fs*0.300)));
   const float aRms=static_cast<float>(1.0-std::exp(-1.0/(fs*0.400)));
+  const float aLevel=aRms;
   const float targetInput=dbToGain(clamp(p.inputDb,-18,18));
   const float targetLTrim=dbToGain(clamp(p.inputTrimLDb,-12,12));
   const float targetRTrim=dbToGain(clamp(p.inputTrimRDb,-12,12));
@@ -130,6 +134,8 @@ public:
   const float compRelease=expCoeff(std::max(50.0f,p.compReleaseMs)*0.001f);
   const float modeRelease=p.limiterMode==1?1.55f:p.limiterMode==2?0.65f:1.0f;
   const float release=expCoeff(std::max(20.0f,p.limiterReleaseMs*modeRelease)*0.001f);
+  const float quickRelease=expCoeff(std::max(20.0f,p.limiterReleaseMs*modeRelease*.55f)*0.001f);
+  const float slowRelease=expCoeff(std::max(20.0f,p.limiterReleaseMs*modeRelease*1.8f)*0.001f);
   // This initial limiter is lookahead/sample-peak, NOT a validated true-peak limiter.
   for(int i=0;i<count;++i){
    inGain+=aFast*(targetInput-inGain); outGain+=aFast*(targetOutput-outGain);
@@ -235,21 +241,44 @@ public:
    // Oversampled interpolation estimates inter-sample peaks with a 7-sample
    // measurement lag. 5 ms lookahead leaves enough lead for this observation.
    const float estimatedPeak=inputTruePeak.tick(l,r);
-   const float desired=std::min(1.0f,preCeiling/std::max(1.e-9f,estimatedPeak));
-   if(desired<releaseGain){releaseGain=desired;limiterHold=lookaheadSamples+16;}
-   else if(limiterHold>0)--limiterHold;
-   else releaseGain=release*releaseGain+(1-release)*desired;
-   gainRedLimit=std::max(gainRedLimit,-gainToDb(releaseGain)*limiterBlend);
+   const float independent[2]={independentTruePeak[0].tick(l,0.f),
+                               independentTruePeak[1].tick(0.f,r)};
+   float desired[2]={1.f,1.f};
+   for(int c=0;c<2;++c){
+    const float detector=p.limiterStereoLink?estimatedPeak:independent[c];
+    desired[c]=std::min(1.f,preCeiling/std::max(1.e-9f,detector));
+    if(desired[c]<releaseGain[c]){
+     releaseGain[c]=desired[c];
+     limiterHold[c]=lookaheadSamples+16;
+    }else if(limiterHold[c]>0){
+     --limiterHold[c];
+    }else{
+     const float autoBlend=clamp((1.f-releaseGain[c])*2.f,0.f,1.f);
+     const float coeff=p.limiterAutoRelease?
+      quickRelease+(slowRelease-quickRelease)*autoBlend:release;
+     releaseGain[c]=coeff*releaseGain[c]+(1.f-coeff)*desired[c];
+    }
+    gainRedLimit=std::max(gainRedLimit,-gainToDb(releaseGain[c])*limiterBlend);
+   }
    delay[pos]={l,r};const auto old=delay[(pos+1)%delay.size()];pos=(pos+1)%delay.size();
-   const float limitedL=old[0]*releaseGain,limitedR=old[1]*releaseGain;
+   const float limitedL=old[0]*releaseGain[0],limitedR=old[1]*releaseGain[1];
    l=old[0]+limiterBlend*(limitedL-old[0]);
    r=old[1]+limiterBlend*(limitedR-old[1]);
    l*=outGain;r*=outGain;
+   // Gentle RMS-linked matching for level-compensated A/B monitoring.
+   const float inputPower=(lInputForMeter*lInputForMeter+rInputForMeter*rInputForMeter)*.5f;
+   const float outputPower=(l*l+r*r)*.5f;
+   levelMatchInputPower+=aLevel*(inputPower-levelMatchInputPower);
+   levelMatchOutputPower+=aLevel*(outputPower-levelMatchOutputPower);
+   const float wantedMatch=p.outputLevelComp?
+      clamp(std::sqrt((levelMatchInputPower+1.e-9f)/(levelMatchOutputPower+1.e-9f)),.50f,2.f):1.f;
+   levelMatchGain+=aDynamics*(wantedMatch-levelMatchGain);
+   l*=levelMatchGain;r*=levelMatchGain;
    // Sample-peak failsafe only when the limiter is engaged. It is not
    // sufficient to claim normative true-peak ceiling compliance.
    const float postPeak=std::max(std::abs(l),std::abs(r));
    const float safety=std::min(1.0f,guardedCeiling/std::max(1.e-9f,postPeak));
-   const float guard=1.0f+limiterBlend*(safety-1.0f);
+   const float guard=1.0f+(p.outputPeakGuard?limiterBlend:0.f)*(safety-1.0f);
    l*=guard;r*=guard;
    l=l*wetBlend+dryOld[0]*(1.0f-wetBlend);
    r=r*wetBlend+dryOld[1]*(1.0f-wetBlend);
@@ -284,16 +313,19 @@ private:
  std::array<float,2> vuPower{{0,0}},rmsPower{{0,0}};
  meters::LoudnessMeter loudness;
  meters::TruePeakEstimator inputTruePeak;
+ std::array<meters::TruePeakEstimator,2> independentTruePeak;
  std::vector<std::array<float,2>> delay,dryDelay;
  std::array<std::array<float,2>,OversampledTube4x::latency+1> colorDelay{};
  std::array<OversampledTube4x,2> tube4x;
  std::size_t dryPos=0,colorPos=0;
  std::size_t pos=0;int lookaheadSamples=240,internalCounter=0;
  float inGain=1,outGain=1,inTrimL=1,inTrimR=1,colorOutGain=1;
- float drive=0,push=0,deessEnvelope=0,releaseGain=1;
+ float drive=0,push=0,deessEnvelope=0;
+ std::array<float,2> releaseGain{{1.f,1.f}};
  std::array<float,2> compEnvelope{{0,0}};
  float eqBlend=1,colorBlend=1,deEssBlend=1,compBlend=1,limiterBlend=1;
- int limiterHold=0;
+ std::array<int,2> limiterHold{{0,0}};
+ float levelMatchInputPower=0.f,levelMatchOutputPower=0.f,levelMatchGain=1.f;
  float wetBlend=1,monoBlend=0,smoothedDeEssFreq=6500;
  float tapeMemory[2]{0,0};
  float smoothedColorMix=0.4f,smoothedCompMix=1.f;

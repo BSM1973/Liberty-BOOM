@@ -55,6 +55,11 @@ juce::AudioProcessorValueTreeState::ParameterLayout BoomAudioProcessor::paramete
  addBool(l,"compBypass","Compressor Bypass");
  addBool(l,"limiterBypass","Limiter Bypass");
  addBool(l,"compStereoLink","Compressor Stereo Link",true);
+ addBool(l,"limiterStereoLink","Limiter Stereo Link",true);
+ addBool(l,"limiterAutoRelease","Limiter Auto Release",false);
+ addBool(l,"outPeakGuard","Output Peak Protection",true);
+ addBool(l,"outputLevelComp","Output Level Compensation",false);
+ addBool(l,"inputLink","Input L/R Trim Link",true);
  addBool(l,"mono","Mono Monitoring");
  addBool(l,"bypass","Global Bypass");
  addBool(l,"meterInput","VU Meter Input");
@@ -81,6 +86,10 @@ boom::Parameters BoomAudioProcessor::readParameters() const noexcept{
  p.compReleaseMs=load("compRelease");p.compMakeupDb=load("compMakeup");p.compMix=load("compMix");
  p.limiterThreshold=load("limitTh");p.ceilingDb=load("ceiling");p.limiterReleaseMs=load("limitRelease");
  p.limiterMode=int(load("limitMode"));p.outputDb=load("outDb");
+ p.limiterAutoRelease=load("limiterAutoRelease")>0.5f;
+ p.limiterStereoLink=load("limiterStereoLink")>0.5f;
+ p.outputPeakGuard=load("outPeakGuard")>0.5f;
+ p.outputLevelComp=load("outputLevelComp")>0.5f;
  p.colorBypass=load("colorBypass")>0.5f;p.eqBypass=load("eqBypass")>0.5f;
  p.deEssBypass=load("deEssBypass")>0.5f;p.compBypass=load("compBypass")>0.5f;
  p.limiterBypass=load("limiterBypass")>0.5f;p.compStereoLink=load("compStereoLink")>0.5f;
@@ -129,6 +138,10 @@ void BoomAudioProcessor::writeParameters(const boom::Parameters& p){
  set("compRelease",p.compReleaseMs);set("compMakeup",p.compMakeupDb);set("compMix",p.compMix);
  set("limitTh",p.limiterThreshold);set("ceiling",p.ceilingDb);set("limitRelease",p.limiterReleaseMs);
  set("limitMode",float(p.limiterMode));set("outDb",p.outputDb);
+ set("limiterStereoLink",p.limiterStereoLink?1.f:0.f);
+ set("limiterAutoRelease",p.limiterAutoRelease?1.f:0.f);
+ set("outPeakGuard",p.outputPeakGuard?1.f:0.f);
+ set("outputLevelComp",p.outputLevelComp?1.f:0.f);
  set("colorBypass",p.colorBypass?1.f:0.f);set("eqBypass",p.eqBypass?1.f:0.f);
  set("deEssBypass",p.deEssBypass?1.f:0.f);set("compBypass",p.compBypass?1.f:0.f);
  set("limiterBypass",p.limiterBypass?1.f:0.f);set("compStereoLink",p.compStereoLink?1.f:0.f);

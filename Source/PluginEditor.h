@@ -2,6 +2,8 @@
 #include <JuceHeader.h>
 #include "PluginProcessor.h"
 #include <memory>
+#include <array>
+#include <optional>
 #include <vector>
 
 // BOOM v0.7: the user-approved console artwork is the actual plugin skin.
@@ -24,11 +26,16 @@ private:
  enum class Page { chain,browser,meters,settings,help };
  struct PresetRow { bool user=false; int index=-1; };
  struct Knob {float x,y,r; const char* id; float tx,ty;};
- struct Field {juce::Rectangle<float> area;const char* id;};
+ struct Field {juce::Rectangle<float> area; const char* id;float scale=1.f;const char* unit="";int decimals=1;};
  BoomAudioProcessor& proc;
  juce::Image chainSkin,browserSkin;
  Page page=Page::chain;
- juce::TextEditor search,saveName;
+ juce::TextEditor search,saveName,numericEditor;
+ juce::String editingId;
+ float editingScale=1.f;
+ std::optional<Field> pendingNumeric;
+ bool dragChanged=false;
+ bool gridMode=false;
  std::unique_ptr<juce::FileChooser> chooser;
  std::vector<PresetRow> rows;
  int category=0,styleFilter=-1,selectedRow=0,firstVisible=0;
@@ -55,6 +62,13 @@ private:
  void finishDrag();
  const Knob* activeKnob(juce::Point<float>)const;
  const Field* chainField(juce::Point<float>)const;
+ const std::array<Field,21>& chainFields()const;
+ void renderChainControls(juce::Graphics&);
+ void openFieldEditor(const Field&);
+ void commitNumeric();
+ void cancelNumeric();
+ void showTrimsMenu();
+ void cyclePreset(int delta);
  void renderKnobs(juce::Graphics&);
  void renderDynamicText(juce::Graphics&);
  void renderMeterNeedles(juce::Graphics&);

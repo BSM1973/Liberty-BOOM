@@ -15,6 +15,8 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
+      - name: Verify interactive UI parameter contract
+        run: python3 Tests/ui_binding_contract.py
       - name: Configure dependency-free DSP tests
         run: cmake -S . -B build-dsp -DBOOM_DSP_ONLY=ON -DCMAKE_BUILD_TYPE=Release
       - name: Build DSP tests
@@ -81,6 +83,12 @@ jobs:
               exit 1
             fi
           done
+      - name: Verify Windows VST3 binary exists
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $files = @(Get-ChildItem -Path "build/BOOM_artefacts/Release/VST3" -Filter "*.vst3" -Recurse -ErrorAction SilentlyContinue)
+          if ($files.Count -eq 0) { throw "BOOM VST3 artifact missing" }
       - name: Test DSP
         run: ctest --test-dir build -C Release --output-on-failure
       - name: Upload unsigned development plugins
@@ -91,5 +99,5 @@ jobs:
             build/BOOM_artefacts/Release/AU/**
             build/BOOM_artefacts/Release/VST3/**
             build/BOOM_artefacts/Release/Standalone/**
-          if-no-files-found: warn
+          if-no-files-found: error
           retention-days: 14
