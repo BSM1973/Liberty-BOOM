@@ -7,6 +7,7 @@
 #include <vector>
 class BoomBrowser;
 class BoomChainPanel;
+class BoomChrome;
 
 // One authoritative, interactive hardware surface. The reference artwork is
 // the skin; transparent hit regions invoke real APVTS parameters or actions.
@@ -31,6 +32,8 @@ private:
  BoomAudioProcessor& processor;
  std::unique_ptr<BoomBrowser> nativeBrowser;
  std::unique_ptr<BoomChainPanel> nativeChain;
+ std::unique_ptr<BoomChrome> nativeHeader,nativeToolbar;
+ int selectedRecall=-1;
  juce::Image chainSkin,browserSkin;
  std::array<juce::Image,7> chainFaces,browserFaces;
  Page page=Page::chain;
@@ -56,7 +59,7 @@ private:
  void paintSkin(juce::Graphics&);
  void paintKnobs(juce::Graphics&);
  void paintMeter(juce::Graphics&);
- void paintHead(juce::Graphics&);
+ void refreshChrome();
  void paintChain(juce::Graphics&);
  void paintBrowser(juce::Graphics&);
  void paintOther(juce::Graphics&);

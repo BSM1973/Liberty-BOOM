@@ -13,12 +13,12 @@ juce::Font font(float size,bool strong=false){
 }
 void BoomBrowser::loadSelection(){
  const auto* e=current();
- if(e==nullptr){setStatus("Aucun élément sélectionné");return;}
+ if(e==nullptr){setStatus("Aucun \u00E9l\u00E9ment s\u00E9lectionn\u00E9");return;}
  bool ok=true;
  if(e->user)ok=proc.loadUserPreset(e->index);
  else if(mode==boom::browser::Mode::Styles)proc.loadStyle(e->index);
  else proc.loadFactoryPreset(e->index);
- setStatus(ok?" "+e->name+"  -  réglages chargés":"Chargement impossible");
+ setStatus(ok?" "+e->name+"  -  r\u00E9glages charg\u00E9s":"Chargement impossible");
  repaint();
 }
 void BoomBrowser::toggleFavorite(){
@@ -26,14 +26,14 @@ void BoomBrowser::toggleFavorite(){
  if(e==nullptr||e->user)return;
  if(mode==boom::browser::Mode::Styles)proc.toggleStyleFavorite(e->index);
  else proc.toggleFavorite(e->index);
- setStatus("Favoris mis à jour");
+ setStatus("Favoris mis \u00E0 jour");
  refresh();
 }
 void BoomBrowser::saveCurrent(){
  const auto name=nameEdit.getText().trim();
  if(name.isEmpty()){setStatus("Saisis un nom pour sauvegarder le master.");return;}
  const int saved=proc.saveUserPreset(name);
- if(saved<0){setStatus("Bibliothèque pleine ou nom invalide.");return;}
+ if(saved<0){setStatus("Biblioth\u00E8que pleine ou nom invalide.");return;}
  proc.setUserPresetTags(saved,tagsEdit.getText());
  mode=boom::browser::Mode::User;category=-1;tag=boom::browser::Tag::All;
  favoritesFilter=false;
@@ -43,21 +43,21 @@ void BoomBrowser::saveCurrent(){
   if(rows[static_cast<std::size_t>(i)].user&&rows[static_cast<std::size_t>(i)].index==saved){
    chosen=i;items.selectRow(grid?i/2:i);break;
   }
- setStatus(" Preset utilisateur sauvegardé dans le projet DAW");
+ setStatus(" Preset utilisateur sauvegard\u00E9 dans le projet DAW");
  syncButtons();repaint();
 }
 void BoomBrowser::renameCurrent(){
  if(!currentUser()){setStatus("Choisis un preset UTILISATEUR.");return;}
  const auto newName=nameEdit.getText().trim();
- if(newName.isEmpty()){setStatus("Le nom ne peut pas être vide.");return;}
+ if(newName.isEmpty()){setStatus("Le nom ne peut pas \u00EAtre vide.");return;}
  if(proc.renameUserPreset(current()->index,newName)){
-  setStatus("Preset renommé");refresh();
+  setStatus("Preset renomm\u00E9");refresh();
  }else setStatus("Renommage impossible");
 }
 void BoomBrowser::writeUserTags(){
- if(!currentUser()){setStatus("Sélectionne un preset utilisateur.");return;}
+ if(!currentUser()){setStatus("S\u00E9lectionne un preset utilisateur.");return;}
  const bool ok=proc.setUserPresetTags(current()->index,tagsEdit.getText());
- setStatus(ok?" Tags sauvegardés dans le projet et le .boom":"Tags non enregistrés");
+ setStatus(ok?" Tags sauvegard\u00E9s dans le projet et le .boom":"Tags non enregistr\u00E9s");
  if(ok)refresh();
 }
 void BoomBrowser::deleteCurrent(){
@@ -71,7 +71,7 @@ void BoomBrowser::deleteCurrent(){
  confirmDelete=false;
  if(proc.deleteUserPreset(index)){
   chosen=-1;refresh(false);
-  setStatus("Preset utilisateur supprimé");
+  setStatus("Preset utilisateur supprim\u00E9");
  }else setStatus("Suppression impossible");
 }
 void BoomBrowser::importCurrent(){
@@ -90,8 +90,8 @@ void BoomBrowser::importCurrent(){
     safe->search.clear();safe->refresh(false);
     safe->chosen=safe->rows.empty()?-1:static_cast<int>(safe->rows.size())-1;
     if(safe->chosen>=0)safe->items.selectRow(safe->grid?safe->chosen/2:safe->chosen);
-    safe->setStatus(" Preset .boom importé");
-   }else safe->setStatus("Import refusé : fichier incorrect ou bibliothèque pleine");
+    safe->setStatus(" Preset .boom import\u00E9");
+   }else safe->setStatus("Import refus\u00E9 : fichier incorrect ou biblioth\u00E8que pleine");
   });
 }
 void BoomBrowser::exportCurrent(){
@@ -109,7 +109,7 @@ void BoomBrowser::exportCurrent(){
     const auto file=picker.getResult();
     if(file==juce::File{})return;
     const bool ok=safe->proc.exportUserPreset(index,file.withFileExtension(".boom"));
-    safe->setStatus(ok?" Preset et tags exportés":"Échec de l'export");
+    safe->setStatus(ok?" Preset et tags export\u00E9s":"\u00C9chec de l'export");
    });
 }
 void BoomBrowser::selectDelta(int delta){
@@ -187,7 +187,7 @@ void BoomBrowser::paint(juce::Graphics& g){
  g.setColour(dark);g.fillRoundedRectangle(center.toFloat(),4.f);
  g.setColour(bronze.withAlpha(.42f));g.drawRoundedRectangle(center.toFloat().reduced(.5f),4.f,1.f);
  g.setColour(gold);g.setFont(font(15.f,true));
- g.drawFittedText("BOOM  /  BIBLIOTHÈQUE DE MASTERING",scaleBox(19,10,290,28),
+ g.drawFittedText("BOOM  /  BIBLIOTH\u00C8QUE DE MASTERING",scaleBox(19,10,290,28),
                   juce::Justification::centredLeft,1);
  g.setColour(gold.withAlpha(.9f));g.setFont(font(11.f));
  const auto total=mode==boom::browser::Mode::Styles?40:
@@ -212,7 +212,7 @@ void BoomBrowser::paintPreview(juce::Graphics& g){
  const auto* item=current();
  put(english?"SOUND PROFILE":"PROFIL SONORE",1230,129,292,18,11,true);
  if(item==nullptr){
-  put(english?"No match. Change filters.":"Aucun résultat. Modifie les filtres.",
+  put(english?"No match. Change filters.":"Aucun r\u00E9sultat. Modifie les filtres.",
       1230,164,291,43,12);
   return;
  }

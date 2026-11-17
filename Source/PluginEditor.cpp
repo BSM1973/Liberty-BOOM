@@ -1,6 +1,7 @@
 #include "PluginEditor.h"
 #include "BoomBrowser.h"
 #include "BoomChainPanel.h"
+#include "BoomChrome.h"
 #include <BinaryData.h>
 #include <algorithm>
 #include <cmath>
@@ -83,13 +84,55 @@ BoomAudioProcessorEditor::BoomAudioProcessorEditor(BoomAudioProcessor& p)
  nativeChain=std::make_unique<BoomChainPanel>(processor);
  addAndMakeVisible(*nativeChain);
  nativeChain->setVisible(true);
+ auto invoke=[this](BoomChrome::Command action){
+  using Cmd=BoomChrome::Command;
+  switch(action){
+   case Cmd::Style:openStyleMenu();break;
+   case Cmd::Preset:openPresetMenu();break;
+   case Cmd::Previous:cyclePreset(-1);break;
+   case Cmd::Next:cyclePreset(1);break;
+   case Cmd::Chain:showPage(Page::chain);break;
+   case Cmd::Meters:showPage(Page::meters);break;
+   case Cmd::Settings:showPage(Page::settings);break;
+   case Cmd::Help:showPage(Page::help);break;
+   case Cmd::Language:openLanguageMenu();break;
+   case Cmd::RecallA:processor.recallComparisonState(0);selectedRecall=0;break;
+   case Cmd::RecallB:processor.recallComparisonState(1);selectedRecall=1;break;
+   case Cmd::StoreA:processor.storeComparisonState(0);break;
+   case Cmd::StoreB:processor.storeComparisonState(1);break;
+   case Cmd::CopyAtoB:processor.copyComparisonState(0,1);break;
+   case Cmd::CopyBtoA:processor.copyComparisonState(1,0);break;
+   case Cmd::Level:toggle("outputLevelComp");break;
+  }
+  refreshChrome();
+ };
+ nativeHeader=std::make_unique<BoomChrome>(BoomChrome::Area::Header,invoke);
+ nativeToolbar=std::make_unique<BoomChrome>(BoomChrome::Area::Toolbar,invoke);
+ addAndMakeVisible(*nativeHeader);
+ addAndMakeVisible(*nativeToolbar);
  setWantsKeyboardFocus(true);
  setResizable(false,false);  // Keep the full console visible, without scrollbars.
  refreshResults();
  const auto initialSize=boomFittedWindowSize(CW,CH);
  setSize(initialSize.x,initialSize.y);
- resized();
+ resized();refreshChrome();
  startTimerHz(30);
+}
+void BoomAudioProcessorEditor::refreshChrome(){
+ if(nativeHeader!=nullptr){
+  const int style=processor.styleIndex();
+  const int preset=processor.presetIndex();
+  const auto styleText=style>=0&&style<40?
+   juce::String(boom::styles()[static_cast<std::size_t>(style)].name):
+   juce::String(english?"Choose a Style":"Choisir un Style");
+  const auto presetText=preset>=0&&preset<100?
+   juce::String(boom::makePreset(preset).name):
+   juce::String(english?"Custom Master":"Master personnalis\u00E9");
+  nativeHeader->setNames(styleText,presetText);
+  nativeHeader->setState(english,int(page),read("outputLevelComp")>.5f,selectedRecall);
+ }
+ if(nativeToolbar!=nullptr)
+  nativeToolbar->setState(english,int(page),read("outputLevelComp")>.5f,selectedRecall);
 }
 BoomAudioProcessorEditor::~BoomAudioProcessorEditor(){
  stopTimer();
@@ -116,7 +159,7 @@ void BoomAudioProcessorEditor::resized(){
  search.setVisible(false);
  userPresetName.setVisible(false);
  if(nativeBrowser!=nullptr){
-  nativeBrowser->setBounds(canvasRect(18.f,95.f,1557.f,344.f));
+  nativeBrowser->setBounds(canvasRect(18.f,96.f,1557.f,337.f));
   nativeBrowser->setVisible(page==Page::browser);
   if(page==Page::browser)nativeBrowser->toFront(false);
  }
@@ -124,6 +167,19 @@ void BoomAudioProcessorEditor::resized(){
   nativeChain->setBounds(canvasRect(47.f,98.f,1577.f,237.f));
   nativeChain->setVisible(page==Page::chain);
   if(page==Page::chain)nativeChain->toFront(false);
+ }
+ // The original JPG does not paint the header or the comparison toolbar.
+ // These components own the entire area, including their native backgrounds.
+ if(nativeHeader!=nullptr){
+  nativeHeader->setBounds(canvasRect(0.f,0.f,float(artWidth()),
+                                     page==Page::browser?95.f:98.f));
+  nativeHeader->toFront(false);
+ }
+ if(nativeToolbar!=nullptr){
+  const float top=page==Page::browser?435.f:343.f;
+  const float bottom=page==Page::browser?481.f:396.f;
+  nativeToolbar->setBounds(canvasRect(0.f,top,float(artWidth()),bottom-top));
+  nativeToolbar->toFront(false);
  }
  if(editing.parameter.isNotEmpty())numericEdit.setVisible(false);
 }
@@ -138,7 +194,7 @@ void BoomAudioProcessorEditor::showPage(Page target){
  }
  const auto fittedSize=boomFittedWindowSize(artWidth(),artHeight());
  setSize(fittedSize.x,fittedSize.y);
- resized();repaint();
+ resized();refreshChrome();repaint();
 }
 float BoomAudioProcessorEditor::read(const char* id)const noexcept{
  if(const auto* v=processor.state().getRawParameterValue(id))return v->load();
@@ -182,9 +238,10 @@ void BoomAudioProcessorEditor::beginGesture(const Zone& zone,const juce::MouseEv
  }
 }
 const boom::ui::Zone* BoomAudioProcessorEditor::zoneAt(juce::Point<float> p)const noexcept{
- // The entire rack is owned by BoomChainPanel. Never forward hidden image
- // hit boxes to the legacy editor: only live controls may change the DSP.
- if(page==Page::chain && p.y>=96.f && p.y<342.f)return nullptr;
+ // The top header, mastering rack and comparison rail are now native.
+ // Never dispatch old photographed hit regions, including spaces between
+ // the new buttons. Native JUCE children own the interactions.
+ if(page==Page::browser ? p.y<481.f : p.y<396.f)return nullptr;
  if(page==Page::browser){
   for(const auto& z:boom::ui::browser)if(z.contains(p.x,p.y))return &z;
  }else{
@@ -204,7 +261,7 @@ void BoomAudioProcessorEditor::mouseDown(const juce::MouseEvent& e){
    if(item.kind==Kind::field||item.kind==Kind::knob){
     juce::PopupMenu m;
     m.addItem(1,english?"Enter a value":"Saisir une valeur");
-    m.addItem(2,english?"Reset to default":"Valeur par défaut");
+    m.addItem(2,english?"Reset to default":"Valeur par d\u00E9faut");
     const auto target=item;
     juce::Component::SafePointer<BoomAudioProcessorEditor> self(this);
     m.showMenuAsync(juce::PopupMenu::Options(),[self,target](int command){
@@ -346,8 +403,8 @@ void BoomAudioProcessorEditor::doAction(const Zone& zone,const juce::MouseEvent&
  if(id=="closeBrowser"){showPage(Page::chain);return;}
  if(id=="recallA"){processor.recallComparisonState(0);notice="A";return;}
  if(id=="recallB"){processor.recallComparisonState(1);notice="B";return;}
- if(id=="storeA"){processor.storeComparisonState(0);notice="Mémoire A enregistrée";return;}
- if(id=="storeB"){processor.storeComparisonState(1);notice="Mémoire B enregistrée";return;}
+ if(id=="storeA"){processor.storeComparisonState(0);notice="M\u00E9moire A enregistr\u00E9e";return;}
+ if(id=="storeB"){processor.storeComparisonState(1);notice="M\u00E9moire B enregistr\u00E9e";return;}
  if(id=="copyAtoB"){processor.copyComparisonState(0,1);notice="A vers B";return;}
  if(id=="copyBtoA"){processor.copyComparisonState(1,0);notice="B vers A";return;}
  if(id=="trimMenu"){openTrimsMenu();return;}
@@ -390,6 +447,7 @@ void BoomAudioProcessorEditor::timerCallback(){
   if(nativeBrowser!=nullptr)nativeBrowser->updateLanguage(english);
  }
  if(nativeChain!=nullptr&&page==Page::chain)nativeChain->syncFromHost();
+ refreshChrome();
  const auto meter=processor.lastMeters();
  auto needleDb=[](float linear){
   return juce::jlimit(-20.f,3.f,

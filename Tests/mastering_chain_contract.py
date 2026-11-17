@@ -31,7 +31,7 @@ assert "chainSkin" in editor
 assert "nativeChain=std::make_unique<BoomChainPanel>" in editor
 assert "nativeChain->setBounds" in editor
 assert "nativeChain->setVisible(page==Page::chain)" in editor
-assert "p.y>=96.f && p.y<342.f" in editor, "Legacy rack hit boxes must be disabled"
+assert "p.y<481.f : p.y<396.f" in editor, "Legacy rack/header/toolbar hit boxes must be disabled"
 assert "if(page==Page::chain)paintChain(g);" not in paint, "Legacy duplicated DSP controls still painted"
 assert "Source/BoomChainPanel.h" in cmake and "Source/BoomChainPanel.cpp" in cmake
 # Collapsing the chain should never bypass/disable actual processing.

@@ -109,7 +109,7 @@ BoomBrowser::BoomBrowser(BoomAudioProcessor& processor,std::function<void()> clo
  status.setJustificationType(juce::Justification::centredLeft);
  status.setColour(juce::Label::textColourId,gold);
  status.setFont(f(11.f));
- setStatus("100 presets d'usine  /  40 Styles  /  bibliothèque utilisateur");
+ setStatus("100 presets d'usine  /  40 Styles  /  biblioth\u00E8que utilisateur");
  updateLanguage(false);
  refresh(false);
 }

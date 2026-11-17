@@ -64,7 +64,7 @@ void BoomAudioProcessorEditor::loadSelected(){
  if(r.isUser){
   if(!processor.loadUserPreset(r.index)){notice="Impossible de charger le preset";return;}
  }else processor.loadFactoryPreset(r.index);
- notice=english?"Preset loaded":"Preset chargé";
+ notice=english?"Preset loaded":"Preset charg\u00E9";
  repaint();
 }
 void BoomAudioProcessorEditor::loadPreset(int index){
@@ -131,7 +131,7 @@ void BoomAudioProcessorEditor::openColorMenu(){
 }
 void BoomAudioProcessorEditor::openLanguageMenu(){
  juce::PopupMenu menu;
- menu.addItem(1,"Français",true,read("language")<.5f);
+ menu.addItem(1,"Fran\u00E7ais",true,read("language")<.5f);
  menu.addItem(2,"English",true,read("language")>.5f);
  juce::Component::SafePointer<BoomAudioProcessorEditor> self(this);
  menu.showMenuAsync(popupOptions(this),[self](int value){
@@ -145,8 +145,8 @@ void BoomAudioProcessorEditor::openTrimsMenu(){
  juce::PopupMenu menu;
  menu.addItem(1,english?"Left trim...":"Trim gauche...");
  menu.addItem(2,english?"Right trim...":"Trim droit...");
- menu.addItem(3,english?"Reset trims":"Réinitialiser les trims");
- menu.addItem(4,read("inputLink")>.5f?"Délier G/D":"Lier G/D");
+ menu.addItem(3,english?"Reset trims":"R\u00E9initialiser les trims");
+ menu.addItem(4,read("inputLink")>.5f?"D\u00E9lier G/D":"Lier G/D");
  juce::Component::SafePointer<BoomAudioProcessorEditor> self(this);
  menu.showMenuAsync(popupOptions(this),[self](int action){
   if(self==nullptr)return;
@@ -163,7 +163,7 @@ void BoomAudioProcessorEditor::openTrimsMenu(){
 }
 void BoomAudioProcessorEditor::openUserMenu(){
  juce::PopupMenu menu;
- menu.addItem(1,english?"Save current preset":"Enregistrer le réglage actuel");
+ menu.addItem(1,english?"Save current preset":"Enregistrer le r\u00E9glage actuel");
  menu.addItem(2,english?"Rename selected user preset":"Renommer le preset utilisateur",
               selectedIsUser());
  menu.addItem(3,english?"Delete selected user preset":"Supprimer le preset utilisateur",
@@ -200,7 +200,7 @@ void BoomAudioProcessorEditor::saveUser(){
      results[static_cast<std::size_t>(i)].index==index){
    changeSelected(i);break;
   }
- notice="Preset enregistré dans le projet DAW  -  export .boom possible.";
+ notice="Preset enregistr\u00E9 dans le projet DAW  -  export .boom possible.";
  repaint();
 }
 void BoomAudioProcessorEditor::renameUser(){
@@ -211,7 +211,7 @@ void BoomAudioProcessorEditor::renameUser(){
  }
  const auto index=results[static_cast<std::size_t>(selectedRow)].index;
  if(processor.renameUserPreset(index,newName)){
-  notice="Preset renommé";refreshResults();
+  notice="Preset renomm\u00E9";refreshResults();
  }
 }
 void BoomAudioProcessorEditor::deleteUser(){
@@ -222,7 +222,7 @@ void BoomAudioProcessorEditor::deleteUser(){
  }
  const int index=results[static_cast<std::size_t>(selectedRow)].index;
  deleteConfirmation=false;
- if(processor.deleteUserPreset(index)){refreshResults();notice="Preset supprimé";}
+ if(processor.deleteUserPreset(index)){refreshResults();notice="Preset supprim\u00E9";}
 }
 void BoomAudioProcessorEditor::importUser(){
  fileChooser=std::make_unique<juce::FileChooser>(
@@ -236,8 +236,8 @@ void BoomAudioProcessorEditor::importUser(){
    if(file==juce::File{})return;
    if(self->processor.importUserPreset(file)){
     self->category=11;self->styleFilter=-1;self->search.clear();
-    self->refreshResults();self->notice="Preset importé";
-   }else self->notice="Fichier .boom invalide ou bibliothèque pleine";
+    self->refreshResults();self->notice="Preset import\u00E9";
+   }else self->notice="Fichier .boom invalide ou biblioth\u00E8que pleine";
    self->repaint();
   });
 }
@@ -258,6 +258,6 @@ void BoomAudioProcessorEditor::exportUser(){
    auto file=chooser.getResult();
    if(file==juce::File{})return;
    const bool ok=self->processor.exportUserPreset(index,file.withFileExtension(".boom"));
-   self->notice=ok?"Preset exporté":"Échec export";self->repaint();
+   self->notice=ok?"Preset export\u00E9":"\u00C9chec export";self->repaint();
   });
 }

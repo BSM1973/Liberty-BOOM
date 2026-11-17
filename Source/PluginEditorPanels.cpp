@@ -100,7 +100,7 @@ void BoomAudioProcessorEditor::paintBrowser(juce::Graphics& g){
   if(r.isUser){
    name=processor.userPresetName(r.index);
    group=english?"User preset":"Preset utilisateur";
-   description="Réglages enregistrés dans le projet DAW. Import / export .boom.";
+   description="R\u00E9glages enregistr\u00E9s dans le projet DAW. Import / export .boom.";
   }else{
    const auto p=boom::makePreset(r.index);
    params=p.params;
@@ -108,15 +108,15 @@ void BoomAudioProcessorEditor::paintBrowser(juce::Graphics& g){
    group=boom::categories[static_cast<std::size_t>(p.category)];
    style=boom::styles()[static_cast<std::size_t>(p.style)].name;
    const char* descriptions[]={
-    "Master commercial équilibré, adapté aux plateformes modernes.",
-    "Dynamique musicale, guitares et présence naturelle.",
-    "Puissance, graves précis et transitoires contrôlés.",
-    "Basses maîtrisées, voix distinctes et punch rythmique.",
-    "Énergie électronique et spectre large.",
+    "Master commercial \u00E9quilibr\u00E9, adapt\u00E9 aux plateformes modernes.",
+    "Dynamique musicale, guitares et pr\u00E9sence naturelle.",
+    "Puissance, graves pr\u00E9cis et transitoires contr\u00F4l\u00E9s.",
+    "Basses ma\u00EEtris\u00E9es, voix distinctes et punch rythmique.",
+    "\u00C9nergie \u00E9lectronique et spectre large.",
     "Traitement subtil et naturel pour les instruments.",
     "Profondeur et ampleur pour l'image.",
-    "Harmoniques et chaleur analogique maîtrisées.",
-    "Cohérence pour les plateformes de diffusion.",
+    "Harmoniques et chaleur analogique ma\u00EEtris\u00E9es.",
+    "Coh\u00E9rence pour les plateformes de diffusion.",
     "Ajustement technique et finition du master."};
    description=descriptions[juce::jlimit(0,9,p.category)];
   }
@@ -163,16 +163,16 @@ void BoomAudioProcessorEditor::paintOther(juce::Graphics& g){
  g.drawRoundedRectangle(48.f,107.f,1550.f,230.f,5.f,1.2f);
  g.setColour(gold);g.setFont(font(17,true));
  const bool meters=page==Page::meters,settings=page==Page::settings;
- g.drawText(meters?"MESURES DE PRÉCISION":
-  settings?"RÉGLAGES DE MASTERING":"GUIDE DE LA CONSOLE BOOM",
+ g.drawText(meters?"MESURES DE PR\u00C9CISION":
+  settings?"R\u00C9GLAGES DE MASTERING":"GUIDE DE LA CONSOLE BOOM",
   72,116,1100,32,juce::Justification::centredLeft);
  g.setColour(copper.withAlpha(.55f));g.drawHorizontalLine(151,72.f,1566.f);
  if(meters){
   const auto m=processor.lastMeters();
   struct Reading{const char* title;float value;const char* unit;bool linear;};
   const std::array<Reading,12> vals{{
-   {"ENTRÉE G",m.inputPeakL,"dBFS",true},
-   {"ENTRÉE D",m.inputPeakR,"dBFS",true},
+   {"ENTR\u00C9E G",m.inputPeakL,"dBFS",true},
+   {"ENTR\u00C9E D",m.inputPeakR,"dBFS",true},
    {"SORTIE G",m.outputPeakL,"dBFS",true},
    {"SORTIE D",m.outputPeakR,"dBFS",true},
    {"VU GAUCHE",m.vuL,"dBFS",true},
@@ -182,7 +182,7 @@ void BoomAudioProcessorEditor::paintOther(juce::Graphics& g){
    {"LUFS I",m.integratedLufs,"LUFS",false},
    {"LRA",m.lra,"LU",false},
    {"TRUE PEAK EST.",m.truePeak,"dBTP*",true},
-   {"CORRÉLATION",m.correlation,"",false}
+   {"CORR\u00C9LATION",m.correlation,"",false}
   }};
   const int x0=75,y0=163,cellW=242,cellH=53,gapX=6;
   for(std::size_t i=0;i<vals.size();++i){
@@ -222,19 +222,19 @@ void BoomAudioProcessorEditor::paintOther(juce::Graphics& g){
   paintReading(g,{443,282,215,29},modes[chosen]);
   g.setColour(gold);g.drawText("LIEN TRIMS G/D",793,260,310,19,
                               juce::Justification::centredLeft);
-  paintReading(g,{793,282,215,29},read("inputLink")>.5f?"LIÉS":"DÉLIÉS");
+  paintReading(g,{793,282,215,29},read("inputLink")>.5f?"LI\u00C9S":"D\u00C9LI\u00C9S");
   g.setColour(gold);g.drawText("LANGUE",1143,260,308,19,
                               juce::Justification::centredLeft);
-  paintReading(g,{1143,282,215,29},english?"ENGLISH":"FRANÇAIS");
+  paintReading(g,{1143,282,215,29},english?"ENGLISH":"FRAN\u00C7AIS");
  }else{
   g.setColour(ivory);g.setFont(font(16));
   g.drawFittedText(
    "1. Choisir un Style puis un des 100 presets.\n"
    "2. Ajuster INPUT DRIVE, les 5 bandes EQ et PUSH.\n"
-   "3. Dans CHAÎNE, chaque valeur se règle au glisser, clic ou molette.\n"
-   "4. Clic droit sur une valeur : saisie numérique ou remise à zéro.\n"
-   "5. A/B compare deux états. NIVEAU active la compensation d'écoute.\n"
-   "6. Les VU, les niveaux et la réduction de gain proviennent du DSP.",
+   "3. Dans CHA\u00CENE, chaque valeur se r\u00E8gle au glisser, clic ou molette.\n"
+   "4. Clic droit sur une valeur : saisie num\u00E9rique ou remise \u00E0 z\u00E9ro.\n"
+   "5. A/B compare deux \u00E9tats. NIVEAU active la compensation d'\u00E9coute.\n"
+   "6. Les VU, les niveaux et la r\u00E9duction de gain proviennent du DSP.",
    85,165,1420,156,juce::Justification::topLeft,7);
  }
 }

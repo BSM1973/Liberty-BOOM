@@ -13,7 +13,7 @@ juce::Font font(float pts,bool bold=false){
  return juce::Font(juce::FontOptions(pts,bold?juce::Font::bold:juce::Font::plain));
 }
 constexpr const char* namesFR[]={
- "ENTRÉE","ANALOGIQUE","ÉGALISEUR","DE-ESSER",
+ "ENTR\u00C9E","ANALOGIQUE","\u00C9GALISEUR","DE-ESSER",
  "COMPRESSEUR","LIMITEUR","SORTIE"
 };
 constexpr const char* namesEN[]={
@@ -106,7 +106,7 @@ BoomChainPanel::BoomChainPanel(BoomAudioProcessor& p):processor(p){
  }
  visibilityButton.onClick=[this]{toggleVisibility();};
  resetButton.onClick=[this]{restoreModuleDefaults();};
- // Entrée
+ // Entr\u00E9e
  addRotary(0,"inputDb","INPUT DRIVE",1.f," dB",1);
  addRotary(0,"inputLTrim","TRIM GAUCHE",1.f," dB",1);
  addRotary(0,"inputRTrim","TRIM DROIT",1.f," dB",1);
@@ -114,48 +114,48 @@ BoomChainPanel::BoomChainPanel(BoomAudioProcessor& p):processor(p){
  // Couleur analogique
  addChoice(1,"color","CIRCUIT",{"CLEAN","TUBE","TAPE"});
  addRotary(1,"colorDrive","SATURATION",100.f," %",0);
- addRotary(1,"colorMix","MÉLANGE",100.f," %",0);
- addRotary(1,"colorPushCharacter","CARACTÈRE PUSH",1.f," %",0);
+ addRotary(1,"colorMix","M\u00C9LANGE",100.f," %",0);
+ addRotary(1,"colorPushCharacter","CARACT\u00C8RE PUSH",1.f," %",0);
  addRotary(1,"colorOut","COMPENSATION",1.f," dB",1);
- addToggle(1,"colorBypass","DÉSACTIVER",true);
+ addToggle(1,"colorBypass","D\u00C9SACTIVER",true);
  // EQ
  addRotary(2,"eq60","60 Hz",1.f," dB",1);
  addRotary(2,"eq120","120 Hz",1.f," dB",1);
  addRotary(2,"eq3k","3 kHz",1.f," dB",1);
  addRotary(2,"eq6k","6 kHz",1.f," dB",1);
  addRotary(2,"eq10k","10 kHz",1.f," dB",1);
- addToggle(2,"eqBypass","DÉSACTIVER",true);
+ addToggle(2,"eqBypass","D\u00C9SACTIVER",true);
  // De-Esser
- addRotary(3,"deFreq","FRÉQUENCE",.001f," kHz",2);
+ addRotary(3,"deFreq","FR\u00C9QUENCE",.001f," kHz",2);
  addRotary(3,"deTh","SEUIL",1.f," dB",1);
- addRotary(3,"deAmt","INTENSITÉ",100.f," %",0);
+ addRotary(3,"deAmt","INTENSIT\u00C9",100.f," %",0);
  addRotary(3,"deAtt","ATTAQUE",1.f," ms",1);
- addRotary(3,"deRel","RELÂCHEMENT",1.f," ms",0);
- addToggle(3,"deEssBypass","DÉSACTIVER",true);
+ addRotary(3,"deRel","REL\u00C2CHEMENT",1.f," ms",0);
+ addToggle(3,"deEssBypass","D\u00C9SACTIVER",true);
  // Compression
  addRotary(4,"compTh","SEUIL",1.f," dB",1);
  addRotary(4,"compRatio","RATIO",1.f,":1",2);
  addRotary(4,"compAttack","ATTAQUE",1.f," ms",0);
- addRotary(4,"compRelease","RELÂCHEMENT",1.f," ms",0);
+ addRotary(4,"compRelease","REL\u00C2CHEMENT",1.f," ms",0);
  addRotary(4,"compMakeup","GAIN",1.f," dB",1);
- addRotary(4,"compMix","MÉLANGE PARALLÈLE",100.f," %",0);
- addToggle(4,"compStereoLink","LIAISON STÉRÉO");
- addToggle(4,"compBypass","DÉSACTIVER",true);
+ addRotary(4,"compMix","M\u00C9LANGE PARALL\u00C8LE",100.f," %",0);
+ addToggle(4,"compStereoLink","LIAISON ST\u00C9R\u00C9O");
+ addToggle(4,"compBypass","D\u00C9SACTIVER",true);
  // Limiter
  addRotary(5,"limitTh","SEUIL",1.f," dB",1);
  addRotary(5,"ceiling","PLAFOND",1.f," dBFS",1);
- addRotary(5,"limitRelease","RELÂCHEMENT",1.f," ms",0);
- addChoice(5,"limitMode","CARACTÈRE",{"TRANSPARENT","PUNCH","LOUD"});
+ addRotary(5,"limitRelease","REL\u00C2CHEMENT",1.f," ms",0);
+ addChoice(5,"limitMode","CARACT\u00C8RE",{"TRANSPARENT","PUNCH","LOUD"});
  addToggle(5,"limiterAutoRelease","AUTO RELEASE");
- addToggle(5,"limiterStereoLink","LIAISON STÉRÉO");
- addToggle(5,"limiterBypass","DÉSACTIVER",true);
+ addToggle(5,"limiterStereoLink","LIAISON ST\u00C9R\u00C9O");
+ addToggle(5,"limiterBypass","D\u00C9SACTIVER",true);
  // Sortie / monitoring
  addRotary(6,"outDb","NIVEAU SORTIE",1.f," dB",1);
- addToggle(6,"outPeakGuard","PROTECTION CRÊTES");
+ addToggle(6,"outPeakGuard","PROTECTION CR\u00CATES");
  addToggle(6,"outputLevelComp","COMPARAISON NIVEAU");
- addToggle(6,"mono","ÉCOUTE MONO");
- addToggle(6,"meterInput","MESURE À L'ENTRÉE");
- addToggle(6,"outputBypass","DÉSACTIVER",true);
+ addToggle(6,"mono","\u00C9COUTE MONO");
+ addToggle(6,"meterInput","MESURE \u00C0 L'ENTR\u00C9E");
+ addToggle(6,"outputBypass","D\u00C9SACTIVER",true);
  setEnglish(english);
  updateVisibility();
 }
@@ -270,7 +270,7 @@ void BoomChainPanel::setEnglish(bool en){
  english=en;
  for(int i=0;i<7;++i)
   tabButtons[static_cast<std::size_t>(i)].setButtonText(moduleName(i,english));
- resetButton.setButtonText(english?"RESET MODULE":"RÉINITIALISER");
+ resetButton.setButtonText(english?"RESET MODULE":"R\u00C9INITIALISER");
  updateVisibility();
 }
 void BoomChainPanel::syncFromHost(){
@@ -362,7 +362,7 @@ void BoomChainPanel::paint(juce::Graphics& g){
  if(!expanded){
   g.setColour(gold.withAlpha(.88f));
   g.setFont(font(juce::jlimit(16.f,23.f,getWidth()/70.f),true));
-  g.drawFittedText(english?"MASTERING CHAIN HIDDEN":"CHAÎNE DE MASTERING MASQUÉE",
+  g.drawFittedText(english?"MASTERING CHAIN HIDDEN":"CHA\u00CENE DE MASTERING MASQU\u00C9E",
                    20,header+15,getWidth()-40,std::max(27,(getHeight()-header)/2),
                    juce::Justification::centred,1);
   g.setColour(ivory.withAlpha(.65f));g.setFont(font(12));

@@ -82,14 +82,25 @@ void BoomAudioProcessorEditor::paint(juce::Graphics& g){
  if(page==Page::meters||page==Page::settings||page==Page::help)paintOther(g);
  paintKnobs(g);
  paintMeter(g);
- paintHead(g);
+ // Header and toolbar text are native JUCE components, never JPG overlays.
 }
 void BoomAudioProcessorEditor::paintSkin(juce::Graphics& g){
  const auto& skin=page==Page::browser?browserSkin:chainSkin;
- if(skin.isValid())
-  g.drawImage(skin,0,0,artWidth(),artHeight(),
-                0,0,skin.getWidth(),skin.getHeight());
- else{
+ if(skin.isValid()){
+  const int headerBottom=page==Page::browser?95:98;
+  const int toolbarTop=page==Page::browser?435:343;
+  const int toolbarBottom=page==Page::browser?481:396;
+  // The JPEG is used ONLY for non-interactive artwork, never for the header
+  // or comparison strip: no double printing is possible in those regions.
+  for(const auto part:{
+       juce::Rectangle<int>(0,headerBottom,artWidth(),toolbarTop-headerBottom),
+       juce::Rectangle<int>(0,toolbarBottom,artWidth(),artHeight()-toolbarBottom)}){
+   juce::Graphics::ScopedSaveState saved(g);
+   g.reduceClipRegion(part);
+   g.drawImage(skin,0,0,artWidth(),artHeight(),
+               0,0,skin.getWidth(),skin.getHeight());
+  }
+ }else{
   g.fillAll(juce::Colour::fromRGB(33,10,16));
   g.setColour(ivory);g.setFont(font(26,true));
   g.drawText("BOOM  -  référence graphique manquante",50,40,artWidth()-100,55,
@@ -107,57 +118,50 @@ void BoomAudioProcessorEditor::paintReading(
  g.drawFittedText(value,inner.toNearestInt().reduced(1,0),
                   juce::Justification::centredRight,1);
 }
-void BoomAudioProcessorEditor::paintHead(juce::Graphics& g){
- const bool browser=page==Page::browser;
- const int style=processor.styleIndex(),preset=processor.presetIndex();
- const auto styleName=style>=0&&style<40?
-   juce::String(boom::styles()[static_cast<std::size_t>(style)].name):
-   (english?"Choose a Style":"Choisir un Style");
- const auto presetName=preset>=0&&preset<100?
-   juce::String(boom::makePreset(preset).name):
-   (english?"Custom Master":"Master personnalisé");
- // The actual photographed dropdowns remain. Only variable text is refreshed.
- auto fillText=[&](int x,int y,int w,int h,juce::String text){
-  g.setColour(juce::Colour::fromRGB(25,9,12));
-  g.fillRect(x,y,w,h);
-  g.setColour(ivory);g.setFont(font(browser?21.f:23.f,true));
-  g.drawFittedText(text,x+6,y,w-12,h,juce::Justification::centred,1);
- };
- if(browser){
-  fillText(72,37,286,28,styleName);
-  fillText(1235,36,233,28,presetName);
- }else{
-  fillText(132,37,285,29,styleName);
-  fillText(1241,38,271,29,presetName);
- }
-}
+
 void BoomAudioProcessorEditor::paintKnobs(juce::Graphics& g){
  const bool b=page==Page::browser;
- const auto& faces=b?browserFaces:chainFaces;
  const float* xs=b?browserCX:chainCX;
- const float* ys=b?browserCY:chainCY;
  const float* radii=b?browserRadius:chainRadius;
  for(int i=0;i<7;++i){
-  const auto& src=faces[static_cast<std::size_t>(i)];
-  if(!src.isValid())continue;
-  const auto* param=processor.state().getParameter(keys[i]);
-  if(param==nullptr)continue;
-  const auto range=param->getNormalisableRange();
-  const float v=read(keys[i]);
-  const float angle=i==6?4.5f*juce::jlimit(0.f,1.f,v/100.f):
-    (v-((range.start+range.end)*.5f))*
-     (2.32f/juce::jmax(.01f,(range.end-range.start)*.5f));
-  const float cx=xs[i],cy=ys[i],r=radii[i];
-  juce::Path face;face.addEllipse(cx-r,cy-r,2*r,2*r);
-  juce::Graphics::ScopedSaveState saved(g);
-  g.reduceClipRegion(face);
-  // The photographed rotary face actually rotates: no false dot, no new knob.
-  const auto transform=juce::AffineTransform::rotation(angle,r,r)
-    .translated(cx-r,cy-r);
-  g.drawImageTransformed(src,transform);
+  const auto* parameter=processor.state().getParameter(keys[i]);
+  if(parameter==nullptr)continue;
+  const float normalized=juce::jlimit(0.f,1.f,
+                           parameter->convertTo0to1(read(keys[i])));
+  const float angle=-2.35f+normalized*4.70f;
+  const float cx=xs[i],cy=(b?browserCY:chainCY)[i];
+  const float radius=radii[i]-.5f;
+  const juce::Rectangle<float> disk(cx-radius,cy-radius,2*radius,2*radius);
+  // Fixed bezel and native circular dial: rotating a photographic crop also
+  // rotates the engraved scale, duplicating needles and breaking the image.
+  // Only the illuminated position marker moves.
+  juce::ColourGradient brass(juce::Colour::fromRGB(85,42,38),
+                             disk.getTopLeft(),
+                             juce::Colour::fromRGB(23,19,18),
+                             disk.getBottomRight(),false);
+  g.setGradientFill(brass);g.fillEllipse(disk);
+  g.setColour(juce::Colour::fromRGB(194,119,83).withAlpha(.85f));
+  g.drawEllipse(disk.reduced(.75f),1.5f);
+  const auto inner=disk.reduced(radius*.13f);
+  juce::ColourGradient core(juce::Colour::fromRGB(65,28,33),
+                            inner.getTopLeft(),
+                            juce::Colour::fromRGB(12,17,15),
+                            inner.getBottomRight(),false);
+  g.setGradientFill(core);g.fillEllipse(inner);
+  g.setColour(juce::Colour::fromRGB(138,93,70).withAlpha(.63f));
+  g.drawEllipse(inner.reduced(.5f),1.f);
+  const auto aPoint=[&](float length){
+   return juce::Point<float>(cx+std::sin(angle)*length,
+                              cy-std::cos(angle)*length);
+  };
+  const auto start=aPoint(radius*.39f),tip=aPoint(radius*.82f);
+  g.setColour(juce::Colour::fromRGB(19,11,11).withAlpha(.68f));
+  g.drawLine(start.x+1.3f,start.y+1.3f,tip.x+1.3f,tip.y+1.3f,4.f);
+  g.setColour(ivory);
+  g.drawLine(start.x,start.y,tip.x,tip.y,juce::jmax(2.f,radius*.065f));
  }
+
  // Dynamic gain figures replace the original static readings inside the skin.
- const float* y=b?browserCY:chainCY;
  for(int i=0;i<7;++i){
   const bool large=i==0||i==6;
   const float width=large?134.f:86.f;
@@ -174,7 +178,6 @@ void BoomAudioProcessorEditor::paintKnobs(juce::Graphics& g){
              juce::roundToInt(width),juce::roundToInt(height),
              juce::Justification::centred);
  }
- (void)y;
 }
 void BoomAudioProcessorEditor::paintMeter(juce::Graphics& g){
  const bool b=page==Page::browser;

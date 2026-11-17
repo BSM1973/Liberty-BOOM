@@ -17,9 +17,13 @@ for file in files:
     found=sorted(set(content).intersection(bad))
     assert not found,f"{file}: unsupported decorative glyphs: {''.join(found)}"
 paint=(root/"Source/PluginEditorPaint.cpp").read_text(encoding="utf-8")
-assert 'g.drawFittedText(text,x+6,y,w-12,h,juce::Justification::centred,1);' in paint
-for text in ('styleName','presetName'):
-    assert paint.count(text)>=3, f"{text}: missing title refresh"
+chrome=(root/"Source/BoomChrome.cpp").read_text(encoding="utf-8")
+assert "void BoomAudioProcessorEditor::paintHead(" not in paint, "Legacy overpaint must stay deleted"
+assert 'g.drawFittedText(b.getButtonText(),b.getLocalBounds().reduced(5,1),' in chrome
+assert "juce::Justification::centred" in chrome, "Native header selectors must be centered"
+assert "setNames(" in chrome and "setButtonText(styleName)" in chrome
+assert "setButtonText(presetName)" in chrome
+assert r"R\u00C9GLAGES" in chrome and r"CHA\u00CENE" in chrome
 browser=(root/"Source/BoomBrowser.cpp").read_text(encoding="utf-8")
 assert 'styleButton(viewList,"LISTE"' in browser
 assert 'styleButton(viewGrid,"GRILLE"' in browser
@@ -30,10 +34,10 @@ preview=(root/"Source/BoomBrowserActions.cpp").read_text(encoding="utf-8")
 assert 'put(item->name,1230,152,286,26,19,true,true)' in preview
 assert 'centered?juce::Justification::centred' in preview
 chain=(root/"Source/BoomChainPanel.cpp").read_text(encoding="utf-8")
-assert '"ÉGALISEUR"' in chain
-assert '"DÉSACTIVER"' in chain
+assert r'"\u00C9GALISEUR"' in chain
+assert r'"D\u00C9SACTIVER"' in chain
 assert 'SliderAttachment' in (root/"Source/BoomChainPanel.h").read_text(encoding="utf-8")
 cmake=(root/"CMakeLists.txt").read_text(encoding="utf-8")
 assert "target_compile_options(BOOM PRIVATE /utf-8)" in cmake
-print("BOOM UI typography PASS: centered Style/Preset selectors + preview, "
+print("BOOM native typography PASS: no legacy header overpainting, native centered selectors, "
       "clean decorative labels, intact French accents and favorite state.")

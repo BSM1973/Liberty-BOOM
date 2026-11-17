@@ -23,6 +23,8 @@ jobs:
         run: python3 Tests/mastering_chain_contract.py
       - name: Validate centered titles and symbol-free UTF-8 interface
         run: python3 Tests/ui_text_contract.py
+      - name: Validate native chrome, A/B wiring, labels and JPEG exclusions
+        run: python3 Tests/native_chrome_contract.py
       - name: Configure dependency-free DSP tests
         run: cmake -S . -B build-dsp -DBOOM_DSP_ONLY=ON -DCMAKE_BUILD_TYPE=Release
       - name: Build DSP tests
