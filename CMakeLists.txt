@@ -51,6 +51,10 @@ target_sources(BOOM PRIVATE
  Source/BoomChainPanel.h Source/BoomChainPanel.cpp
  Source/BoomDSP.h Source/LoudnessMeter.h Source/OversampledTube.h Source/FactoryLibrary.h)
 target_compile_definitions(BOOM PRIVATE JUCE_WEB_BROWSER=0 JUCE_USE_CURL=0 JUCE_VST3_CAN_REPLACE_VST2=0)
+# MSVC must parse French UTF-8 source literals without codepage corruption.
+if(MSVC)
+ target_compile_options(BOOM PRIVATE /utf-8)
+endif()
 target_link_libraries(BOOM PRIVATE
  BOOMArtwork
  juce::juce_audio_utils

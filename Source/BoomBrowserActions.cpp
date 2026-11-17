@@ -18,7 +18,7 @@ void BoomBrowser::loadSelection(){
  if(e->user)ok=proc.loadUserPreset(e->index);
  else if(mode==boom::browser::Mode::Styles)proc.loadStyle(e->index);
  else proc.loadFactoryPreset(e->index);
- setStatus(ok?"✓ "+e->name+" — réglages chargés":"Chargement impossible");
+ setStatus(ok?" "+e->name+"  -  réglages chargés":"Chargement impossible");
  repaint();
 }
 void BoomBrowser::toggleFavorite(){
@@ -43,7 +43,7 @@ void BoomBrowser::saveCurrent(){
   if(rows[static_cast<std::size_t>(i)].user&&rows[static_cast<std::size_t>(i)].index==saved){
    chosen=i;items.selectRow(grid?i/2:i);break;
   }
- setStatus("✓ Preset utilisateur sauvegardé dans le projet DAW");
+ setStatus(" Preset utilisateur sauvegardé dans le projet DAW");
  syncButtons();repaint();
 }
 void BoomBrowser::renameCurrent(){
@@ -57,7 +57,7 @@ void BoomBrowser::renameCurrent(){
 void BoomBrowser::writeUserTags(){
  if(!currentUser()){setStatus("Sélectionne un preset utilisateur.");return;}
  const bool ok=proc.setUserPresetTags(current()->index,tagsEdit.getText());
- setStatus(ok?"✓ Tags sauvegardés dans le projet et le .boom":"Tags non enregistrés");
+ setStatus(ok?" Tags sauvegardés dans le projet et le .boom":"Tags non enregistrés");
  if(ok)refresh();
 }
 void BoomBrowser::deleteCurrent(){
@@ -90,7 +90,7 @@ void BoomBrowser::importCurrent(){
     safe->search.clear();safe->refresh(false);
     safe->chosen=safe->rows.empty()?-1:static_cast<int>(safe->rows.size())-1;
     if(safe->chosen>=0)safe->items.selectRow(safe->grid?safe->chosen/2:safe->chosen);
-    safe->setStatus("✓ Preset .boom importé");
+    safe->setStatus(" Preset .boom importé");
    }else safe->setStatus("Import refusé : fichier incorrect ou bibliothèque pleine");
   });
 }
@@ -109,7 +109,7 @@ void BoomBrowser::exportCurrent(){
     const auto file=picker.getResult();
     if(file==juce::File{})return;
     const bool ok=safe->proc.exportUserPreset(index,file.withFileExtension(".boom"));
-    safe->setStatus(ok?"✓ Preset et tags exportés":"Échec de l'export");
+    safe->setStatus(ok?" Preset et tags exportés":"Échec de l'export");
    });
 }
 void BoomBrowser::selectDelta(int delta){
@@ -202,9 +202,12 @@ void BoomBrowser::paintPreview(juce::Graphics& g){
  const auto r=previewRect.toFloat();
  g.setColour(juce::Colour::fromRGB(23,11,14));g.fillRoundedRectangle(r,4.f);
  g.setColour(bronze.withAlpha(.75f));g.drawRoundedRectangle(r.reduced(.5f),4.f,1.f);
- auto put=[&](juce::String text,float x,float y,float w,float h,float size,bool strong=false){
+ auto put=[&](juce::String text,float x,float y,float w,float h,float size,
+              bool strong=false,bool centered=false){
   g.setColour(strong?ivory:gold);g.setFont(font(size,strong));
-  g.drawFittedText(text,scaleBox(x,y,w,h),juce::Justification::centredLeft,1);
+  g.drawFittedText(text,scaleBox(x,y,w,h),
+                   centered?juce::Justification::centred:
+                            juce::Justification::centredLeft,1);
  };
  const auto* item=current();
  put(english?"SOUND PROFILE":"PROFIL SONORE",1230,129,292,18,11,true);
@@ -213,16 +216,16 @@ void BoomBrowser::paintPreview(juce::Graphics& g){
       1230,164,291,43,12);
   return;
  }
- put(item->name,1230,152,286,26,19,true);
+ put(item->name,1230,152,286,26,19,true,true);
  if(mode==boom::browser::Mode::User){
   put("USER  /  "+juce::String(proc.userPresetCount())+" presets",1230,184,287,19,11);
   return;
  }
- put(categoryName(*item)+"  •  "+styleName(*item),1230,184,288,19,10);
+ put(categoryName(*item)+"   /   "+styleName(*item),1230,184,288,19,10);
  boom::Parameters p=item->index>=0?
   (mode==boom::browser::Mode::Styles?boom::makeStyle(item->index):
                                     boom::makePreset(item->index).params):boom::Parameters{};
- put("PUSH  "+juce::String(p.push,0)+" %   •   DRIVE "+
+ put("PUSH  "+juce::String(p.push,0)+" %    /    DRIVE "+
      juce::String(p.inputDb,1)+" dB",1230,207,288,19,12,true);
  put("GLUE  "+juce::String(p.compRatio,2)+":1     CEILING "+
      juce::String(p.ceilingDb,1)+" dBFS",1230,229,288,20,11);

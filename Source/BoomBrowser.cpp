@@ -49,11 +49,11 @@ BoomBrowser::BoomBrowser(BoomAudioProcessor& processor,std::function<void()> clo
  styleButton(presets,"PRESETS",[this]{setMode(boom::browser::Mode::Presets);});
  styleButton(styles,"STYLES",[this]{setMode(boom::browser::Mode::Styles);});
  styleButton(user,"USER",[this]{setMode(boom::browser::Mode::User);});
- styleButton(close,"✕",[this]{if(onClose)onClose();});
- styleButton(onlyFavorites,"★ FAVORIS",[this]{
+ styleButton(close,"X",[this]{if(onClose)onClose();});
+ styleButton(onlyFavorites,"FAVORIS",[this]{
   favoritesFilter=!favoritesFilter;category=-1;refresh();});
- styleButton(viewList,"☷",[this]{grid=false;refresh();});
- styleButton(viewGrid,"▦",[this]{grid=true;refresh();});
+ styleButton(viewList,"LISTE",[this]{grid=false;refresh();});
+ styleButton(viewGrid,"GRILLE",[this]{grid=true;refresh();});
  styleButton(clearFilters,"EFFACER",[this]{
   category=-1;tag=boom::browser::Tag::All;favoritesFilter=false;
   search.clear();refresh();});
@@ -62,14 +62,14 @@ BoomBrowser::BoomBrowser(BoomAudioProcessor& processor,std::function<void()> clo
    boom::browser::tagFr[static_cast<std::size_t>(i)],
    [this,i]{tag=static_cast<boom::browser::Tag>(i);refresh();});
  }
- styleButton(load,"▶ CHARGER",[this]{loadSelection();});
- styleButton(favorite,"☆ FAVORI",[this]{toggleFavorite();});
+ styleButton(load,"CHARGER",[this]{loadSelection();});
+ styleButton(favorite,"FAVORI",[this]{toggleFavorite();});
  styleButton(save,"SAUVER",[this]{saveCurrent();});
  styleButton(rename,"RENOMMER",[this]{renameCurrent();});
  styleButton(remove,"SUPPRIMER",[this]{deleteCurrent();});
  styleButton(import,"IMPORTER",[this]{importCurrent();});
  styleButton(exportFile,"EXPORTER",[this]{exportCurrent();});
- styleButton(writeTags,"TAGS ✓",[this]{writeUserTags();});
+ styleButton(writeTags,"TAGS",[this]{writeUserTags();});
  for(auto* e:{&search,&nameEdit,&tagsEdit}){
   e->setColour(juce::TextEditor::backgroundColourId,bg);
   e->setColour(juce::TextEditor::textColourId,ivory);
@@ -97,8 +97,8 @@ BoomBrowser::BoomBrowser(BoomAudioProcessor& processor,std::function<void()> clo
  addAndMakeVisible(items);
  addAndMakeVisible(sortCombo);
  sortCombo.addItem("Ordre d'usine",1);
- sortCombo.addItem("Nom A–Z",2);
- sortCombo.addItem("Nom Z–A",3);
+ sortCombo.addItem("Nom A-Z",2);
+ sortCombo.addItem("Nom Z-A",3);
  sortCombo.setSelectedId(1,juce::dontSendNotification);
  sortCombo.onChange=[this]{refresh();};
  sortCombo.setColour(juce::ComboBox::backgroundColourId,bg);
@@ -109,7 +109,7 @@ BoomBrowser::BoomBrowser(BoomAudioProcessor& processor,std::function<void()> clo
  status.setJustificationType(juce::Justification::centredLeft);
  status.setColour(juce::Label::textColourId,gold);
  status.setFont(f(11.f));
- setStatus("100 presets d'usine • 40 Styles • bibliothèque utilisateur");
+ setStatus("100 presets d'usine  /  40 Styles  /  bibliothèque utilisateur");
  updateLanguage(false);
  refresh(false);
 }
@@ -137,16 +137,16 @@ void BoomBrowser::updateLanguage(bool en){
  presets.setButtonText(en?"PRESETS":"PRESETS");
  styles.setButtonText(en?"STYLES":"STYLES");
  user.setButtonText(en?"USER":"UTILISATEUR");
- onlyFavorites.setButtonText(en?"★ FAVORITES":"★ FAVORIS");
+ onlyFavorites.setButtonText(en?"FAVORITES":"FAVORIS");
  clearFilters.setButtonText(en?"RESET":"EFFACER");
- load.setButtonText(en?"▶ LOAD":"▶ CHARGER");
- favorite.setButtonText(en?"☆ FAVORITE":"☆ FAVORI");
+ load.setButtonText(en?"LOAD":"CHARGER");
+ favorite.setButtonText(en?"FAVORITE":"FAVORI");
  save.setButtonText(en?"SAVE":"SAUVER");
  rename.setButtonText(en?"RENAME":"RENOMMER");
  remove.setButtonText(en?"DELETE":"SUPPRIMER");
  import.setButtonText(en?"IMPORT":"IMPORTER");
  exportFile.setButtonText(en?"EXPORT":"EXPORTER");
- writeTags.setButtonText(en?"SET TAGS":"TAGS ✓");
+ writeTags.setButtonText(en?"SET TAGS":"TAGS");
  for(int i=0;i<9;++i)
   tagButtons[static_cast<std::size_t>(i)].setButtonText(
    en?boom::browser::tagEn[static_cast<std::size_t>(i)]
@@ -193,10 +193,11 @@ void BoomBrowser::syncButtons(){
  const bool hasChoice=current()!=nullptr;
  const bool userChoice=currentUser();
  favorite.setEnabled(hasChoice&&!userChoice);
- favorite.setButtonText(hasChoice&&!userChoice&&
-  ((mode==boom::browser::Mode::Styles)?
-   proc.isStyleFavorite(current()->index):proc.isFavorite(current()->index))?
-   "★ FAVORI":"☆ FAVORI");
+ const bool starred=hasChoice&&!userChoice&&
+  (mode==boom::browser::Mode::Styles?
+   proc.isStyleFavorite(current()->index):proc.isFavorite(current()->index));
+ favorite.setToggleState(starred,juce::dontSendNotification);
+ favorite.setButtonText(english?"FAVORITE":"FAVORI");
  load.setEnabled(hasChoice);
  rename.setEnabled(userChoice);
  remove.setEnabled(userChoice);
@@ -293,7 +294,7 @@ void BoomBrowser::CategoryModel::paintListBoxItem(
  int row,juce::Graphics& g,int w,int h,bool selected){
  if(row<0||row>=getNumRows())return;
  const juce::String name=row==0?(owner.english?"ALL":"TOUS"):row==11?
-  (owner.english?"★ Favorites":"★ Favoris"):
+  (owner.english?"Favorites":"Favoris"):
   juce::String(boom::browser::categoryShort[static_cast<std::size_t>(row-1)]);
  int count=0;
  if(row==0)count=owner.mode==boom::browser::Mode::Styles?40:
@@ -379,9 +380,11 @@ void BoomBrowser::paintListBoxItem(
   if(!item.user){
    const bool starred=mode==boom::browser::Mode::Styles?
     proc.isStyleFavorite(item.index):proc.isFavorite(item.index);
-   g.setColour(starred?gold:gold.withAlpha(.38f));g.setFont(f(17.f));
-   g.drawText(starred?"★":"☆",int(cell.getRight())-32,
-              int(cell.getY())+2,28,24,juce::Justification::centred);
+   if(starred){
+    g.setColour(gold);g.setFont(f(10.f,true));
+    g.drawText("FAV",int(cell.getRight())-35,
+               int(cell.getY())+2,31,24,juce::Justification::centred);
+   }
   }
  }
 }

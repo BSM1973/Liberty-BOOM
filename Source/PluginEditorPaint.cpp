@@ -92,7 +92,7 @@ void BoomAudioProcessorEditor::paintSkin(juce::Graphics& g){
  else{
   g.fillAll(juce::Colour::fromRGB(33,10,16));
   g.setColour(ivory);g.setFont(font(26,true));
-  g.drawText("BOOM — référence graphique manquante",50,40,artWidth()-100,55,
+  g.drawText("BOOM  -  référence graphique manquante",50,40,artWidth()-100,55,
              juce::Justification::centred);
  }
 }
@@ -121,7 +121,7 @@ void BoomAudioProcessorEditor::paintHead(juce::Graphics& g){
   g.setColour(juce::Colour::fromRGB(25,9,12));
   g.fillRect(x,y,w,h);
   g.setColour(ivory);g.setFont(font(browser?21.f:23.f,true));
-  g.drawFittedText(text,x+2,y,w-4,h,juce::Justification::centredLeft,1);
+  g.drawFittedText(text,x+6,y,w-12,h,juce::Justification::centred,1);
  };
  if(browser){
   fillText(72,37,286,28,styleName);
@@ -211,7 +211,7 @@ void BoomAudioProcessorEditor::paintSwitch(
    const auto r=juce::Rectangle<float>(z.x+5,z.y+3,z.w-10,z.h-6);
    g.setColour(dark);g.fillRect(r);
    g.setColour(copper);g.setFont(font(10,true));
-   g.drawFittedText("○ OFF",r.toNearestInt(),
+   g.drawFittedText(" OFF",r.toNearestInt(),
                     juce::Justification::centred,1);
   }
   return;

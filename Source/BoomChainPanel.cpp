@@ -196,7 +196,7 @@ void BoomChainPanel::addRotary(
      processor.state().getParameter(parameter)->getDefaultValue()):0.f);
  c->attachment=std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
    processor.state(),parameter,c->slider);
- c->slider.setTooltip(juce::String(title)+" — "+juce::String(parameter));
+ c->slider.setTooltip(juce::String(title)+"  -  "+juce::String(parameter));
  addAndMakeVisible(c->label);addAndMakeVisible(c->slider);
  rotaries.push_back(std::move(c));
 }
@@ -229,7 +229,7 @@ void BoomChainPanel::addToggle(
  t->button.setLookAndFeel(&look);
  t->button.setColour(juce::ToggleButton::textColourId,ivory);
  t->button.setMouseCursor(juce::MouseCursor::PointingHandCursor);
- t->button.setTooltip(juce::String(title)+" — "+juce::String(parameter));
+ t->button.setTooltip(juce::String(title)+"  -  "+juce::String(parameter));
  t->attachment=std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(
    processor.state(),parameter,t->button);
  addAndMakeVisible(t->button);

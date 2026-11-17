@@ -348,8 +348,8 @@ void BoomAudioProcessorEditor::doAction(const Zone& zone,const juce::MouseEvent&
  if(id=="recallB"){processor.recallComparisonState(1);notice="B";return;}
  if(id=="storeA"){processor.storeComparisonState(0);notice="Mémoire A enregistrée";return;}
  if(id=="storeB"){processor.storeComparisonState(1);notice="Mémoire B enregistrée";return;}
- if(id=="copyAtoB"){processor.copyComparisonState(0,1);notice="A → B";return;}
- if(id=="copyBtoA"){processor.copyComparisonState(1,0);notice="B → A";return;}
+ if(id=="copyAtoB"){processor.copyComparisonState(0,1);notice="A vers B";return;}
+ if(id=="copyBtoA"){processor.copyComparisonState(1,0);notice="B vers A";return;}
  if(id=="trimMenu"){openTrimsMenu();return;}
  if(id=="categoryFavorites"){selectCategory(10);return;}
  if(id=="categoryUser"){selectCategory(11);return;}

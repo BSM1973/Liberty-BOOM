@@ -11,7 +11,7 @@ const auto dark=juce::Colour::fromRGB(21,10,13);
 juce::Font font(float size,bool heavy=false){
  return juce::Font(juce::FontOptions(size,heavy?juce::Font::bold:juce::Font::plain));
 }
-juce::String formatDb(float v){return v<=-90.f?"—":juce::String(v,1);}
+juce::String formatDb(float v){return v<=-90.f?" - ":juce::String(v,1);}
 }
 
 void BoomAudioProcessorEditor::paintBrowser(juce::Graphics& g){
@@ -26,7 +26,7 @@ void BoomAudioProcessorEditor::paintBrowser(juce::Graphics& g){
   juce::String name,group,style;
   if(row.isUser){
    name=processor.userPresetName(row.index);
-   group=english?"User":"Utilisateur";style="—";
+   group=english?"User":"Utilisateur";style=" - ";
   }else{
    const auto preset=boom::makePreset(row.index);
    name=juce::String(preset.name);
@@ -45,8 +45,8 @@ void BoomAudioProcessorEditor::paintBrowser(juce::Graphics& g){
    g.setColour(gold);g.setFont(font(11));
    g.drawFittedText(group,x+13,y+30,305,17,juce::Justification::centredLeft,1);
    g.setColour(row.isUser?copper:processor.isFavorite(row.index)?gold:gold.withAlpha(.4f));
-   g.setFont(font(20));
-   g.drawText(row.isUser?"◆":processor.isFavorite(row.index)?"★":"☆",
+   g.setFont(font(10,true));
+   g.drawText(row.isUser?"USER":processor.isFavorite(row.index)?"FAV":"",
               x+320,y+6,35,42,juce::Justification::centred);
   }else{
    const int y=210+i*35;
@@ -59,8 +59,8 @@ void BoomAudioProcessorEditor::paintBrowser(juce::Graphics& g){
    g.drawFittedText(group,680,y+1,209,31,juce::Justification::centredLeft,1);
    g.drawFittedText(style,901,y+1,164,31,juce::Justification::centredLeft,1);
    g.setColour(row.isUser?copper:processor.isFavorite(row.index)?gold:gold.withAlpha(.5f));
-   g.setFont(font(21));
-   g.drawText(row.isUser?"◆":processor.isFavorite(row.index)?"★":"☆",
+   g.setFont(font(10,true));
+   g.drawText(row.isUser?"USER":processor.isFavorite(row.index)?"FAV":"",
               1068,y+1,37,31,juce::Justification::centred);
    g.setColour(copper.withAlpha(.20f));g.drawHorizontalLine(y+33,376.f,1108.f);
   }
@@ -142,8 +142,8 @@ void BoomAudioProcessorEditor::paintBrowser(juce::Graphics& g){
    g.drawFittedText(line4,1168,306,321,19,juce::Justification::centredLeft,1);
   }
   const bool starred=!r.isUser&&processor.isFavorite(r.index);
-  g.setColour(starred?gold:gold.withAlpha(.45f));g.setFont(font(22));
-  g.drawText(starred?"★":"☆",1470,141,40,31,juce::Justification::centred);
+  g.setColour(starred?gold:gold.withAlpha(.45f));g.setFont(font(10,true));
+  g.drawText(starred?"FAV":"",1470,141,40,31,juce::Justification::centred);
  }
  // A tiny selection outline on the existing list/grid glyph; no fake button.
  g.setColour(gold);const int x=grid?1089:1042;
