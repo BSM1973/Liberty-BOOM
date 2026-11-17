@@ -117,8 +117,8 @@ void BoomChrome::updateButtons(){
  }
  const auto local=[this](const char* fr,const char* en){return juce::String(english?en:fr);};
  const juce::String labels[]{
-  local("CHA\u00CENE","CHAIN"),local("MESURES","METERS"),
-  local("R\u00C9GLAGES","SETTINGS"),local("AIDE","HELP"),
+  local("CHAINE","CHAIN"),local("MESURES","METERS"),
+  local("REGLAGES","SETTINGS"),local("AIDE","HELP"),
   english?"EN":"FR",
   "A","B",local("SAUV. A","SAVE A"),local("SAUV. B","SAVE B"),
   "A > B","B > A",local("NIVEAU","LEVEL")
@@ -127,15 +127,15 @@ void BoomChrome::updateButtons(){
   if(toolbarButtons[i].getButtonText()!=labels[i])
    toolbarButtons[i].setButtonText(labels[i]);
  const juce::String tips[]{
-  local("Cha\u00EEne de mastering","Mastering chain"),
+  local("Chaine de mastering","Mastering chain"),
   local("Mesures audio","Audio measurements"),
-  local("R\u00E9glages du plugin","Plugin settings"),
+  local("Reglages du plugin","Plugin settings"),
   local("Aide de BOOM","BOOM help"),
   local("Changer de langue","Change language"),
-  local("Rappeler la m\u00E9moire A","Recall A"),
-  local("Rappeler la m\u00E9moire B","Recall B"),
-  local("Enregistrer la m\u00E9moire A","Store in A"),
-  local("Enregistrer la m\u00E9moire B","Store in B"),
+  local("Rappeler la memoire A","Recall A"),
+  local("Rappeler la memoire B","Recall B"),
+  local("Enregistrer la memoire A","Store in A"),
+  local("Enregistrer la memoire B","Store in B"),
   local("Copier A dans B","Copy A into B"),
   local("Copier B dans A","Copy B into A"),
   local("Compensation du niveau pour la comparaison","Level matching")

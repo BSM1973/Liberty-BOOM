@@ -128,7 +128,7 @@ void BoomAudioProcessorEditor::refreshChrome(){
    juce::String(english?"Choose a Style":"Choisir un Style");
   const auto presetText=preset>=0&&preset<100?
    juce::String(boom::makePreset(preset).name):
-   juce::String(english?"Custom Master":"Master personnalis\u00E9");
+   juce::String(english?"Custom Master":"Master personnalise");
   nativeHeader->setNames(styleText,presetText);
   nativeHeader->setState(english,int(page),read("outputLevelComp")>.5f,selectedRecall);
  }
@@ -262,7 +262,7 @@ void BoomAudioProcessorEditor::mouseDown(const juce::MouseEvent& e){
    if(item.kind==Kind::field||item.kind==Kind::knob){
     juce::PopupMenu m;
     m.addItem(1,english?"Enter a value":"Saisir une valeur");
-    m.addItem(2,english?"Reset to default":"Valeur par d\u00E9faut");
+    m.addItem(2,english?"Reset to default":"Valeur par defaut");
     const auto target=item;
     juce::Component::SafePointer<BoomAudioProcessorEditor> self(this);
     m.showMenuAsync(juce::PopupMenu::Options(),[self,target](int command){
@@ -448,8 +448,8 @@ void BoomAudioProcessorEditor::doAction(const Zone& zone,const juce::MouseEvent&
  if(id=="closeBrowser"){showPage(Page::chain);return;}
  if(id=="recallA"){processor.recallComparisonState(0);notice="A";return;}
  if(id=="recallB"){processor.recallComparisonState(1);notice="B";return;}
- if(id=="storeA"){processor.storeComparisonState(0);notice="M\u00E9moire A enregistr\u00E9e";return;}
- if(id=="storeB"){processor.storeComparisonState(1);notice="M\u00E9moire B enregistr\u00E9e";return;}
+ if(id=="storeA"){processor.storeComparisonState(0);notice="Memoire A enregistree";return;}
+ if(id=="storeB"){processor.storeComparisonState(1);notice="Memoire B enregistree";return;}
  if(id=="copyAtoB"){processor.copyComparisonState(0,1);notice="A vers B";return;}
  if(id=="copyBtoA"){processor.copyComparisonState(1,0);notice="B vers A";return;}
  if(id=="trimMenu"){openTrimsMenu();return;}

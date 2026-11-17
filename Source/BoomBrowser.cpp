@@ -15,8 +15,8 @@ juce::Font f(float size,bool strong=false){
  return boom::ui::theme::font(size,strong);
 }
 constexpr const char* categoriesFR[10]={
- "Pop / Commercial","Rock / Alternatif","M\u00E9tal / Heavy","Hip-Hop / Trap",
- "\u00C9lectro / Dance","Jazz / Acoustique","Cin\u00E9ma / Ambient",
+ "Pop / Commercial","Rock / Alternatif","Metal / Heavy","Hip-Hop / Trap",
+ "Electro / Dance","Jazz / Acoustique","Cinema / Ambient",
  "Vintage analogique","Streaming","Outils mastering"
 };
 constexpr const char* categoriesEN[10]={
@@ -139,7 +139,7 @@ BoomBrowser::BoomBrowser(BoomAudioProcessor& processor,std::function<void()> clo
  status.setJustificationType(juce::Justification::centredLeft);
  status.setColour(juce::Label::textColourId,gold);
  status.setFont(f(12.f));
- setStatus("100 presets d'usine  /  40 Styles  /  biblioth\u00E8que utilisateur");
+ setStatus("100 presets d'usine  /  40 Styles  /  bibliotheque utilisateur");
  updateLanguage(false);
  refresh(false);
 }
@@ -195,13 +195,13 @@ void BoomBrowser::updateLanguage(bool en){
  exportFile.setButtonText(en?"EXPORT":"EXPORTER");
  writeTags.setButtonText(en?"SET TAGS":"TAGS");
  load.setTooltip(en?"Apply the selected master to the DSP":
-                    "Charger le master s\u00E9lectionn\u00E9 dans le moteur audio");
+                    "Charger le master selectionne dans le moteur audio");
  onlyFavorites.setTooltip(en?"Show starred factory presets or Styles":
                              "Afficher uniquement les favoris");
  viewList.setTooltip(en?"List view":"Affichage en liste");
  viewGrid.setTooltip(en?"Grid view":"Affichage en grille");
  save.setTooltip(en?"Save the current master as a user preset":
-                    "Enregistrer le master courant dans la biblioth\u00E8que utilisateur");
+                    "Enregistrer le master courant dans la bibliotheque utilisateur");
  rename.setTooltip(en?"Rename the selected user preset":"Renommer le preset utilisateur");
  remove.setTooltip(en?"Delete the selected user preset":"Supprimer le preset utilisateur");
  import.setTooltip(en?"Import a .boom file":"Importer un fichier .boom");

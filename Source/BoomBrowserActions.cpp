@@ -15,12 +15,12 @@ juce::Font font(float size,bool strong=false){
 }
 void BoomBrowser::loadSelection(){
  const auto* e=current();
- if(e==nullptr){setStatus("Aucun \u00E9l\u00E9ment s\u00E9lectionn\u00E9");return;}
+ if(e==nullptr){setStatus("Aucun element selectionne");return;}
  bool ok=true;
  if(e->user)ok=proc.loadUserPreset(e->index);
  else if(mode==boom::browser::Mode::Styles)proc.loadStyle(e->index);
  else proc.loadFactoryPreset(e->index);
- setStatus(ok?e->name+" : r\u00E9glages charg\u00E9s":"Chargement impossible");
+ setStatus(ok?e->name+" : reglages charges":"Chargement impossible");
  repaint();
 }
 void BoomBrowser::toggleFavorite(){
@@ -28,14 +28,14 @@ void BoomBrowser::toggleFavorite(){
  if(e==nullptr||e->user)return;
  if(mode==boom::browser::Mode::Styles)proc.toggleStyleFavorite(e->index);
  else proc.toggleFavorite(e->index);
- setStatus("Favoris mis \u00E0 jour");
+ setStatus("Favoris mis a jour");
  refresh();
 }
 void BoomBrowser::saveCurrent(){
  const auto name=nameEdit.getText().trim();
  if(name.isEmpty()){setStatus("Saisis un nom pour sauvegarder le master.");return;}
  const int saved=proc.saveUserPreset(name);
- if(saved<0){setStatus("Biblioth\u00E8que pleine ou nom invalide.");return;}
+ if(saved<0){setStatus("Bibliotheque pleine ou nom invalide.");return;}
  proc.setUserPresetTags(saved,tagsEdit.getText());
  mode=boom::browser::Mode::User;category=-1;tag=boom::browser::Tag::All;
  favoritesFilter=false;
@@ -45,21 +45,21 @@ void BoomBrowser::saveCurrent(){
   if(rows[static_cast<std::size_t>(i)].user&&rows[static_cast<std::size_t>(i)].index==saved){
    chosen=i;items.selectRow(grid?i/2:i);break;
   }
- setStatus("Preset utilisateur sauvegard\u00E9 dans le projet DAW");
+ setStatus("Preset utilisateur sauvegarde dans le projet DAW");
  syncButtons();repaint();
 }
 void BoomBrowser::renameCurrent(){
  if(!currentUser()){setStatus("Choisis un preset UTILISATEUR.");return;}
  const auto newName=nameEdit.getText().trim();
- if(newName.isEmpty()){setStatus("Le nom ne peut pas \u00EAtre vide.");return;}
+ if(newName.isEmpty()){setStatus("Le nom ne peut pas etre vide.");return;}
  if(proc.renameUserPreset(current()->index,newName)){
-  setStatus("Preset renomm\u00E9");refresh();
+  setStatus("Preset renomme");refresh();
  }else setStatus("Renommage impossible");
 }
 void BoomBrowser::writeUserTags(){
- if(!currentUser()){setStatus("S\u00E9lectionne un preset utilisateur.");return;}
+ if(!currentUser()){setStatus("Selectionne un preset utilisateur.");return;}
  const bool ok=proc.setUserPresetTags(current()->index,tagsEdit.getText());
- setStatus(ok?"Tags sauvegard\u00E9s dans le projet et le .boom":"Tags non enregistr\u00E9s");
+ setStatus(ok?"Tags sauvegardes dans le projet et le .boom":"Tags non enregistres");
  if(ok)refresh();
 }
 void BoomBrowser::deleteCurrent(){
@@ -73,7 +73,7 @@ void BoomBrowser::deleteCurrent(){
  confirmDelete=false;
  if(proc.deleteUserPreset(index)){
   chosen=-1;refresh(false);
-  setStatus("Preset utilisateur supprim\u00E9");
+  setStatus("Preset utilisateur supprime");
  }else setStatus("Suppression impossible");
 }
 void BoomBrowser::importCurrent(){
@@ -92,8 +92,8 @@ void BoomBrowser::importCurrent(){
     safe->search.clear();safe->refresh(false);
     safe->chosen=safe->rows.empty()?-1:static_cast<int>(safe->rows.size())-1;
     if(safe->chosen>=0)safe->items.selectRow(safe->grid?safe->chosen/2:safe->chosen);
-    safe->setStatus("Preset .boom import\u00E9");
-   }else safe->setStatus("Import refus\u00E9 : fichier incorrect ou biblioth\u00E8que pleine");
+    safe->setStatus("Preset .boom importe");
+   }else safe->setStatus("Import refuse : fichier incorrect ou bibliotheque pleine");
   });
 }
 void BoomBrowser::exportCurrent(){
@@ -111,7 +111,7 @@ void BoomBrowser::exportCurrent(){
     const auto file=picker.getResult();
     if(file==juce::File{})return;
     const bool ok=safe->proc.exportUserPreset(index,file.withFileExtension(".boom"));
-    safe->setStatus(ok?"Preset et tags export\u00E9s":"\u00C9chec de l'export");
+    safe->setStatus(ok?"Preset et tags exportes":"Echec de l'export");
    });
 }
 void BoomBrowser::selectDelta(int delta){
@@ -219,7 +219,7 @@ void BoomBrowser::paintPreview(juce::Graphics& g){
  const auto* item=current();
  if(item==nullptr){
   write(english?"No results. Change the search or filters.":
-                "Aucun r\u00E9sultat. Modifiez les filtres.",
+                "Aucun resultat. Modifiez les filtres.",
         1233,167,285,40,12.5f,false,true);
   return;
  }
@@ -228,7 +228,7 @@ void BoomBrowser::paintPreview(juce::Graphics& g){
   write(english?"USER PRESET":"PRESET UTILISATEUR",1232,178,290,15,11.f);
   rule(196);
   write(english?"PRESET NAME":"NOM DU MASTER",1232,202,290,12,10.5f,true);
-  write(english?"CUSTOM TAGS":"TAGS PERSONNAL\u00C9S",1232,247,290,13,10.5f,true);
+  write(english?"CUSTOM TAGS":"TAGS PERSONNALES",1232,247,290,13,10.5f,true);
   return; // Native edit fields occupy y=218..244 and y=266..292.
  }
  write(categoryName(*item)+" / "+styleName(*item),

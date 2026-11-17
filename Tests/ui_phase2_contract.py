@@ -23,7 +23,7 @@ assert "Source/BoomUiTheme.h" in cmake
 chrome=(root/"Source/BoomChrome.cpp").read_text(encoding="utf-8")
 assert 'toolbarButtons[i].setTooltip(tips[i]);' in chrome
 assert 'g.drawVerticalLine(x,' in chrome
-assert 'g.drawFittedText(b.getButtonText(),b.getLocalBounds().reduced(5,1)' in chrome
+assert 'g.drawFittedText(boom::ui::text::safeUpperText(b.getButtonText()),b.getLocalBounds().reduced(5,1)' in chrome
 assert 'juce::Justification::centred' in chrome
 assert 'pagesForButtons' in chrome
 browser=(root/"Source/BoomBrowser.cpp").read_text(encoding="utf-8")
@@ -67,7 +67,6 @@ for a,b in [("status","load"),("status","export"),("name","tags"),
     assert not intersects(rects[a],rects[b]), f"Layout collision {a}/{b}"
 # No drawn preview content may compete with editable fields in user mode.
 assert "return; // Native edit fields occupy y=218..244 and y=266..292." in preview
-assert '"\\u00C9GALISEUR"' in (root/"Source/BoomChainPanel.cpp").read_text() or (
-       r'"\u00C9GALISEUR"' in (root/"Source/BoomChainPanel.cpp").read_text())
+assert '"EGALISEUR"' in (root/"Source/BoomChainPanel.cpp").read_text()
 print("BOOM phase 2 PASS: shared native typography, clean footer, localized "
       "browser, aligned previews, full status and no user-field collisions")

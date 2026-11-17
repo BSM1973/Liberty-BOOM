@@ -19,11 +19,11 @@ for file in files:
 paint=(root/"Source/PluginEditorPaint.cpp").read_text(encoding="utf-8")
 chrome=(root/"Source/BoomChrome.cpp").read_text(encoding="utf-8")
 assert "void BoomAudioProcessorEditor::paintHead(" not in paint, "Legacy overpaint must stay deleted"
-assert 'g.drawFittedText(b.getButtonText(),b.getLocalBounds().reduced(5,1),' in chrome
+assert 'g.drawFittedText(boom::ui::text::safeUpperText(b.getButtonText()),b.getLocalBounds().reduced(5,1),' in chrome
 assert "juce::Justification::centred" in chrome, "Native header selectors must be centered"
 assert "setNames(" in chrome and "setButtonText(styleName)" in chrome
 assert "setButtonText(presetName)" in chrome
-assert r"R\u00C9GLAGES" in chrome and r"CHA\u00CENE" in chrome
+assert "REGLAGES" in chrome and "CHAINE" in chrome
 browser=(root/"Source/BoomBrowser.cpp").read_text(encoding="utf-8")
 assert 'styleButton(viewList,"LISTE"' in browser
 assert 'styleButton(viewGrid,"GRILLE"' in browser
@@ -34,8 +34,8 @@ preview=(root/"Source/BoomBrowserActions.cpp").read_text(encoding="utf-8")
 assert 'write(item->name,1231,148,292,29,19.f,true,true)' in preview
 assert 'centered?juce::Justification::centred' in preview
 chain=(root/"Source/BoomChainPanel.cpp").read_text(encoding="utf-8")
-assert r'"\u00C9GALISEUR"' in chain
-assert r'"D\u00C9SACTIVER"' in chain
+assert '"EGALISEUR"' in chain
+assert '"DESACTIVER"' in chain
 assert 'SliderAttachment' in (root/"Source/BoomChainPanel.h").read_text(encoding="utf-8")
 cmake=(root/"CMakeLists.txt").read_text(encoding="utf-8")
 assert "target_compile_options(BOOM PRIVATE /utf-8)" in cmake

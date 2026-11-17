@@ -73,10 +73,10 @@ for filename in display_sources:
     src=(root/filename).read_text(encoding="utf-8")
     assert src.isascii(),f"{filename}: non-ASCII source literals should use C++ Unicode escapes"
     assert "Ã" not in src and "\ufffd" not in src
-assert r"Master personnalis\u00E9" in core
-assert r"BIBLIOTH\u00C8QUE" in browser
-assert r"R\u00C9GLAGES" in chrome
-assert r"\u00C9GALISEUR" in chain
+assert "Master personnalise" in core
+assert "BIBLIOTHEQUE" in browser
+assert "REGLAGES" in chrome
+assert "EGALISEUR" in chain
 
 # Test header and toolbar layout at several plausible physical plugin widths.
 for w in (960,1100,1280,1592,1672):
