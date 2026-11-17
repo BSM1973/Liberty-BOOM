@@ -6,11 +6,12 @@ files=[
  "Source/PluginEditor.cpp",
  "Source/PluginEditorPaint.cpp",
  "Source/PluginEditorPanels.cpp",
+ "Source/PluginEditorMenus.cpp",
  "Source/BoomBrowser.cpp",
  "Source/BoomBrowserActions.cpp",
  "Source/BoomChainPanel.cpp",
 ]
-bad="★☆◆✕☷▦▶✓•→—–○"
+bad="★☆◆✕☷▦▶✓•→—–○…"
 for file in files:
     content=(root/file).read_text(encoding="utf-8")
     found=sorted(set(content).intersection(bad))

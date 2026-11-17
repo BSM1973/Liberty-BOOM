@@ -111,7 +111,7 @@ void BoomAudioProcessorEditor::openStyleFilter(){
    sub.addItem(index+2,juce::String(boom::styles()[static_cast<std::size_t>(index)].name),
                true,styleFilter==index);
   }
-  menu.addSubMenu(juce::String(group*10+1)+"–"+juce::String(group*10+10),sub);
+  menu.addSubMenu(juce::String(group*10+1)+"-"+juce::String(group*10+10),sub);
  }
  juce::Component::SafePointer<BoomAudioProcessorEditor> self(this);
  menu.showMenuAsync(popupOptions(this),[self](int choice){
@@ -143,8 +143,8 @@ void BoomAudioProcessorEditor::openLanguageMenu(){
 }
 void BoomAudioProcessorEditor::openTrimsMenu(){
  juce::PopupMenu menu;
- menu.addItem(1,english?"Left trim...":"Trim gauche…");
- menu.addItem(2,english?"Right trim...":"Trim droit…");
+ menu.addItem(1,english?"Left trim...":"Trim gauche...");
+ menu.addItem(2,english?"Right trim...":"Trim droit...");
  menu.addItem(3,english?"Reset trims":"Réinitialiser les trims");
  menu.addItem(4,read("inputLink")>.5f?"Délier G/D":"Lier G/D");
  juce::Component::SafePointer<BoomAudioProcessorEditor> self(this);
@@ -200,7 +200,7 @@ void BoomAudioProcessorEditor::saveUser(){
      results[static_cast<std::size_t>(i)].index==index){
    changeSelected(i);break;
   }
- notice="Preset enregistré dans le projet DAW — export .boom possible.";
+ notice="Preset enregistré dans le projet DAW  -  export .boom possible.";
  repaint();
 }
 void BoomAudioProcessorEditor::renameUser(){
