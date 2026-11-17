@@ -105,7 +105,7 @@ for work_w,work_h in [(1280,800),(1440,900),(1366,768),(1280,720)]:
     factor=min(1.,chrome_w/1230)
     gap=max(3,roundi(6*factor))
     margin=roundi(13*factor)
-    nav=[91,97,109,73,56]
+    nav=[91,97,109,73]
     compare=[38,38,73,73,58,58,88]
     left_end=margin+sum(roundi(v*factor)+gap for v in nav)
     compare_start=chrome_w-margin-sum(roundi(v*factor)+gap for v in compare)

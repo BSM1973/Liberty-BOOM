@@ -24,7 +24,7 @@ panels=source("Source/PluginEditorPanels.cpp")
 chain_h=source("Source/BoomChainPanel.h")
 assert "case Cmd::French:setInterfaceLanguage(false)" in editor
 assert "case Cmd::English:setInterfaceLanguage(true)" in editor
-assert "case Cmd::Language:setInterfaceLanguage(!english)" in editor
+assert "case Cmd::Language:" not in editor
 assert "parameterId,frenchLabel" in chain_h, "Each control must carry a translatable label"
 assert "englishTitle(" in chain
 assert "for(auto& c:rotaries)" in chain and "for(auto& c:choices)" in chain
@@ -59,8 +59,18 @@ assert 'english=read("language")>.5f' in menu
 assert 'nativeBrowser->updateLanguage(english)' in menu
 assert 'nativeChain->setEnglish(english)' in menu
 assert 'refreshChrome()' in menu
-assert 'showMenuAsync' not in menu.split('void BoomAudioProcessorEditor::openLanguageMenu(){',1)[1].split('\n}',1)[0]
-assert 'setInterfaceLanguage(!(read("language")>.5f))' in menu
+assert 'void BoomAudioProcessorEditor::openLanguageMenu()' not in menu
+assert 'void openLanguageMenu();' not in source("Source/PluginEditor.h")
+assert 'english?"LANGUAGE":"LANGUE"' not in panels
+assert 'openLanguageMenu()' not in panels
+assert 'english?"EN":"FR"' not in chrome
+assert 'std::array<juce::TextButton,11> toolbarButtons;' in chrome_h
+assert "BoomPremiumMenuLook menuLook" in source("Source/PluginEditor.h")
+assert "popupOptions({443.f,282.f,215.f,29.f})" in panels
+assert "withTargetScreenArea(target)" in menu
+assert "m.setLookAndFeel(&menuLook)" in panels
+assert "sortCombo.setLookAndFeel(&menuLook)" in browser
+assert "c->box.setLookAndFeel(&menuLook)" in chain
 assert 'addChoice(l,"language","Language",{"FR","EN"})' in processor
 assert 'juce::String::charToString' in safe
 

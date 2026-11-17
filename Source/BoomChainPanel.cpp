@@ -200,6 +200,7 @@ BoomChainPanel::BoomChainPanel(BoomAudioProcessor& p):processor(p){
 BoomChainPanel::~BoomChainPanel(){
  // Attachments are destroyed before controls; then detach the custom look.
  for(auto& c:rotaries)c->slider.setLookAndFeel(nullptr);
+ for(auto& c:choices)c->box.setLookAndFeel(nullptr);
  for(auto& c:toggles)c->button.setLookAndFeel(nullptr);
  rotaries.clear();choices.clear();toggles.clear();
  for(auto& b:tabButtons)b.setLookAndFeel(nullptr);
@@ -255,6 +256,7 @@ void BoomChainPanel::addChoice(
  c->label.setColour(juce::Label::textColourId,ivory);
  int index=1;
  for(auto v:values)c->box.addItem(juce::String(v),index++);
+ c->box.setLookAndFeel(&menuLook);
  c->box.setColour(juce::ComboBox::backgroundColourId,wood);
  c->box.setColour(juce::ComboBox::textColourId,ivory);
  c->box.setColour(juce::ComboBox::outlineColourId,copper);

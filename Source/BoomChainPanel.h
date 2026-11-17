@@ -1,6 +1,7 @@
 #pragma once
 #include <JuceHeader.h>
 #include "PluginProcessor.h"
+#include "BoomPremiumMenuLook.h"
 #include <array>
 #include <memory>
 #include <vector>
@@ -50,6 +51,7 @@ private:
  };
  BoomAudioProcessor& processor;
  CopperLook look;
+ BoomPremiumMenuLook menuLook;
  std::array<juce::TextButton,7> tabButtons;
  juce::TextButton visibilityButton,resetButton;
  std::vector<std::unique_ptr<RotaryControl>> rotaries;

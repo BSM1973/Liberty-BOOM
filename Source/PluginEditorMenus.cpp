@@ -3,10 +3,13 @@
 #include "BoomChainPanel.h"
 #include <algorithm>
 
-namespace {
-juce::PopupMenu::Options popupOptions(juce::Component* target){
- return juce::PopupMenu::Options().withTargetComponent(target);
-}
+juce::PopupMenu::Options BoomAudioProcessorEditor::popupOptions(
+ juce::Rectangle<float> rect) const {
+ auto target=canvasRect(rect.getX(),rect.getY(),rect.getWidth(),rect.getHeight());
+ target=target.translated(getScreenX(),getScreenY());
+ return juce::PopupMenu::Options().withTargetScreenArea(target)
+        .withMinimumWidth(juce::jmax(190,target.getWidth()))
+        .withStandardItemHeight(36);
 }
 
 bool BoomAudioProcessorEditor::selectedIsUser()const{
@@ -104,9 +107,11 @@ void BoomAudioProcessorEditor::openPresetMenu(){
 
 void BoomAudioProcessorEditor::openStyleFilter(){
  juce::PopupMenu menu;
+ menu.setLookAndFeel(&menuLook);
  menu.addItem(1,english?"All Styles":"Tous les Styles",true,styleFilter<0);
  for(int group=0;group<4;++group){
   juce::PopupMenu sub;
+  sub.setLookAndFeel(&menuLook);
   for(int k=0;k<10;++k){
    const int index=group*10+k;
    sub.addItem(index+2,juce::String(boom::styles()[static_cast<std::size_t>(index)].name),
@@ -115,7 +120,7 @@ void BoomAudioProcessorEditor::openStyleFilter(){
   menu.addSubMenu(juce::String(group*10+1)+"-"+juce::String(group*10+10),sub);
  }
  juce::Component::SafePointer<BoomAudioProcessorEditor> self(this);
- menu.showMenuAsync(popupOptions(this),[self](int choice){
+ menu.showMenuAsync(popupOptions({854.f,137.f,178.f,31.f}),[self](int choice){
   if(self==nullptr||choice==0)return;
   self->styleFilter=choice==1?-1:choice-2;
   self->firstVisible=0;self->refreshResults();
@@ -123,10 +128,11 @@ void BoomAudioProcessorEditor::openStyleFilter(){
 }
 void BoomAudioProcessorEditor::openColorMenu(){
  juce::PopupMenu menu;
+ menu.setLookAndFeel(&menuLook);
  constexpr const char* labels[]={"CLEAN","TUBE","TAPE"};
  for(int i=0;i<3;++i)menu.addItem(i+1,labels[i],true,int(read("color"))==i);
  juce::Component::SafePointer<BoomAudioProcessorEditor> self(this);
- menu.showMenuAsync(popupOptions(this),[self](int value){
+ menu.showMenuAsync(popupOptions({217.f,180.f,89.f,25.f}),[self](int value){
   if(self!=nullptr&&value>0)self->write("color",float(value-1));
  });
 }
@@ -140,19 +146,17 @@ void BoomAudioProcessorEditor::setInterfaceLanguage(bool useEnglish){
  refreshChrome();
  repaint();
 }
-void BoomAudioProcessorEditor::openLanguageMenu(){
- // Legacy settings/toolbar language controls are intentionally a direct
- // toggle, not a plugin-host-dependent PopupMenu.
- setInterfaceLanguage(!(read("language")>.5f));
-}
 void BoomAudioProcessorEditor::openTrimsMenu(){
  juce::PopupMenu menu;
+ menu.setLookAndFeel(&menuLook);
  menu.addItem(1,english?"Left trim...":"Trim gauche...");
  menu.addItem(2,english?"Right trim...":"Trim droit...");
  menu.addItem(3,english?"Reset trims":"Reinitialiser les trims");
  menu.addItem(4,read("inputLink")>.5f?"Delier G/D":"Lier G/D");
  juce::Component::SafePointer<BoomAudioProcessorEditor> self(this);
- menu.showMenuAsync(popupOptions(this),[self](int action){
+ menu.showMenuAsync(popupOptions(page==Page::browser?
+  juce::Rectangle<float>(228.f,861.f,77.f,32.f):
+  juce::Rectangle<float>(256.f,831.f,78.f,29.f)),[self](int action){
   if(self==nullptr)return;
   const bool b=self->page==Page::browser;
   const juce::Rectangle<float> place=b?
@@ -167,6 +171,7 @@ void BoomAudioProcessorEditor::openTrimsMenu(){
 }
 void BoomAudioProcessorEditor::openUserMenu(){
  juce::PopupMenu menu;
+ menu.setLookAndFeel(&menuLook);
  menu.addItem(1,english?"Save current preset":"Enregistrer le reglage actuel");
  menu.addItem(2,english?"Rename selected user preset":"Renommer le preset utilisateur",
               selectedIsUser());
@@ -177,7 +182,7 @@ void BoomAudioProcessorEditor::openUserMenu(){
  menu.addItem(5,english?"Export selected .boom":"Exporter le preset .boom",
               selectedIsUser());
  juce::Component::SafePointer<BoomAudioProcessorEditor> self(this);
- menu.showMenuAsync(popupOptions(this),[self](int action){
+ menu.showMenuAsync(popupOptions({772.f,395.f,144.f,30.f}),[self](int action){
   if(self==nullptr)return;
   switch(action){
    case 1:self->saveUser();break;

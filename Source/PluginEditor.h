@@ -2,6 +2,7 @@
 #include <JuceHeader.h>
 #include "PluginProcessor.h"
 #include "BOOMUIMap.h"
+#include "BoomPremiumMenuLook.h"
 #include <array>
 #include <memory>
 #include <vector>
@@ -35,6 +36,7 @@ private:
  std::unique_ptr<BoomBrowser> nativeBrowser;
  std::unique_ptr<BoomChainPanel> nativeChain;
  std::unique_ptr<BoomChrome> nativeHeader,nativeToolbar;
+ BoomPremiumMenuLook menuLook;
  int selectedRecall=-1;
  int hoveredKnob=-1,focusedKnob=-1;
  juce::Image chainSkin,browserSkin;
@@ -79,8 +81,8 @@ private:
  void openPresetMenu();
  void openStyleFilter();
  void openColorMenu();
- void openLanguageMenu();
  void setInterfaceLanguage(bool useEnglish);
+ juce::PopupMenu::Options popupOptions(juce::Rectangle<float>) const;
  void openUserMenu();
  void openTrimsMenu();
  void saveUser();

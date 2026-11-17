@@ -2,6 +2,7 @@
 #include <JuceHeader.h>
 #include "PluginProcessor.h"
 #include "BoomBrowserCatalog.h"
+#include "BoomPremiumMenuLook.h"
 #include <array>
 #include <functional>
 #include <memory>
@@ -44,6 +45,7 @@ private:
  BoomAudioProcessor& proc;
  std::function<void()> onClose;
  BrassButtons buttonsLook;
+ BoomPremiumMenuLook menuLook;
  CategoryModel categoryModel;
  juce::ListBox categories,items;
  juce::TextEditor search,nameEdit,tagsEdit;

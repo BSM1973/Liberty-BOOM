@@ -126,6 +126,7 @@ BoomBrowser::BoomBrowser(BoomAudioProcessor& processor,std::function<void()> clo
  items.setRowHeight(30);
  addAndMakeVisible(items);
  addAndMakeVisible(sortCombo);
+ sortCombo.setLookAndFeel(&menuLook);
  sortCombo.addItem("Ordre d'usine",1);
  sortCombo.addItem("Nom A-Z",2);
  sortCombo.addItem("Nom Z-A",3);
@@ -144,6 +145,7 @@ BoomBrowser::BoomBrowser(BoomAudioProcessor& processor,std::function<void()> clo
  refresh(false);
 }
 BoomBrowser::~BoomBrowser(){
+ sortCombo.setLookAndFeel(nullptr);
  items.removeMouseListener(this);
  categories.removeMouseListener(this);
  items.setModel(nullptr);

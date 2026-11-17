@@ -96,7 +96,6 @@ BoomAudioProcessorEditor::BoomAudioProcessorEditor(BoomAudioProcessor& p)
    case Cmd::Meters:showPage(Page::meters);break;
    case Cmd::Settings:showPage(Page::settings);break;
    case Cmd::Help:showPage(Page::help);break;
-   case Cmd::Language:setInterfaceLanguage(!english);break;
    case Cmd::French:setInterfaceLanguage(false);break;
    case Cmd::English:setInterfaceLanguage(true);break;
    case Cmd::RecallA:processor.recallComparisonState(0);selectedRecall=0;break;
@@ -139,6 +138,7 @@ void BoomAudioProcessorEditor::refreshChrome(){
 }
 BoomAudioProcessorEditor::~BoomAudioProcessorEditor(){
  stopTimer();
+ juce::PopupMenu::dismissAllActiveMenus();
  endGesture();
 }
 int BoomAudioProcessorEditor::artWidth()const noexcept {
@@ -263,11 +263,12 @@ void BoomAudioProcessorEditor::mouseDown(const juce::MouseEvent& e){
    const auto& item=*hit;
    if(item.kind==Kind::field||item.kind==Kind::knob){
     juce::PopupMenu m;
+    m.setLookAndFeel(&menuLook);
     m.addItem(1,english?"Enter a value":"Saisir une valeur");
     m.addItem(2,english?"Reset to default":"Valeur par defaut");
     const auto target=item;
     juce::Component::SafePointer<BoomAudioProcessorEditor> self(this);
-    m.showMenuAsync(juce::PopupMenu::Options(),[self,target](int command){
+    m.showMenuAsync(popupOptions({item.x,item.y,item.w,item.h}),[self,target](int command){
      if(self==nullptr)return;
      if(command==1)self->numericFor(target);
      if(command==2)
@@ -437,7 +438,6 @@ void BoomAudioProcessorEditor::doAction(const Zone& zone,const juce::MouseEvent&
   else if(id=="presetMenu")openPresetMenu();
   else if(id=="styleFilter")openStyleFilter();
   else if(id=="color")openColorMenu();
-  else if(id=="language")openLanguageMenu();
   else if(id=="userMenu")openUserMenu();
   return;
  }

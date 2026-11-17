@@ -49,7 +49,7 @@ target_sources(BOOM PRIVATE
  Source/PluginEditorPanels.cpp Source/PluginEditorMenus.cpp Source/BOOMUIMap.h
  Source/BoomBrowserCatalog.h Source/BoomBrowser.h Source/BoomBrowser.cpp Source/BoomBrowserActions.cpp
  Source/BoomChainPanel.h Source/BoomChainPanel.cpp
- Source/BoomChrome.h Source/BoomChrome.cpp Source/BoomUiTheme.h Source/BoomSafeText.h
+ Source/BoomChrome.h Source/BoomChrome.cpp Source/BoomUiTheme.h Source/BoomSafeText.h Source/BoomPremiumMenuLook.h
  Source/BoomDSP.h Source/LoudnessMeter.h Source/OversampledTube.h Source/FactoryLibrary.h)
 target_compile_definitions(BOOM PRIVATE JUCE_WEB_BROWSER=0 JUCE_USE_CURL=0 JUCE_VST3_CAN_REPLACE_VST2=0)
 # MSVC must parse French UTF-8 source literals without codepage corruption.

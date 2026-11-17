@@ -46,7 +46,6 @@ required={
  "Previous":"cyclePreset(-1)","Next":"cyclePreset(1)",
  "Chain":"showPage(Page::chain)","Meters":"showPage(Page::meters)",
  "Settings":"showPage(Page::settings)","Help":"showPage(Page::help)",
- "Language":"setInterfaceLanguage(!english)",
  "French":"setInterfaceLanguage(false)",
  "English":"setInterfaceLanguage(true)",
  "RecallA":"processor.recallComparisonState(0)",
@@ -86,7 +85,7 @@ for w in (960,1100,1280,1592,1672):
     rightStart=.752*w
     assert leftEnd < .345*w < .655*w < rightStart
     r=min(1.,w/1230.)
-    nav=[91,97,109,73,56]
+    nav=[91,97,109,73]
     compare=[38,38,73,73,58,58,88]
     gap=max(3,round(6*r))
     margin=round(13*r)
@@ -96,5 +95,5 @@ for w in (960,1100,1280,1592,1672):
     labelWidth=round(78*r)
     assert leftEnd < rightStart-labelWidth-6, (w,"toolbar overlap")
 
-print("BOOM chrome contract PASS: 16 native actions, real JPEG exclusions, "
+print("BOOM chrome contract PASS: 17 native controls, real JPEG exclusions, "
       "centred Style/Preset, ASCII-source UTF-8 Unicode, nonoverlapping layouts")

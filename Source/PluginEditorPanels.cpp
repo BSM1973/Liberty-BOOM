@@ -228,9 +228,6 @@ void BoomAudioProcessorEditor::paintOther(juce::Graphics& g){
                               juce::Justification::centredLeft);
   paintReading(g,{793,282,215,29},read("inputLink")>.5f?
         (english?"LINKED":"LIES"):(english?"UNLINKED":"DELIES"));
-  g.setColour(gold);g.drawText(english?"LANGUAGE":"LANGUE",1143,260,308,19,
-                              juce::Justification::centredLeft);
-  paintReading(g,{1143,282,215,29},english?"ENGLISH":"FRANCAIS");
  }else{
   g.setColour(ivory);g.setFont(font(16.f));
   const juce::String help=english?
@@ -274,15 +271,18 @@ bool BoomAudioProcessorEditor::handleAuxiliary(
    }
   if(inside(443,282,215,29)){
    juce::PopupMenu m;
-   m.addItem(1,"TRANSPARENT");m.addItem(2,"PUNCH");m.addItem(3,"LOUD");
+   m.setLookAndFeel(&menuLook);
+   const int selected=juce::jlimit(0,2,int(read("limitMode")+.5f));
+   m.addItem(1,"TRANSPARENT",true,selected==0);
+   m.addItem(2,"PUNCH",true,selected==1);
+   m.addItem(3,"LOUD",true,selected==2);
    juce::Component::SafePointer<BoomAudioProcessorEditor> self(this);
-   m.showMenuAsync(juce::PopupMenu::Options().withTargetComponent(this),
+   m.showMenuAsync(popupOptions({443.f,282.f,215.f,29.f}),
      [self](int i){if(self!=nullptr&&i>=1&&i<=3)
        self->write("limitMode",float(i-1));});
    return true;
   }
   if(inside(793,282,215,29)){toggle("inputLink");return true;}
-  if(inside(1143,282,215,29)){openLanguageMenu();return true;}
   return true;
  }
  return true;

@@ -68,7 +68,7 @@ BoomChrome::BoomChrome(Area which,OnCommand action)
   headerButtons[2].setName("headerPreset");
  }else{
   constexpr Command commands[]{
-   Command::Chain,Command::Meters,Command::Settings,Command::Help,Command::Language,
+   Command::Chain,Command::Meters,Command::Settings,Command::Help,
    Command::RecallA,Command::RecallB,Command::StoreA,Command::StoreB,
    Command::CopyAtoB,Command::CopyBtoA,Command::Level
   };
@@ -124,7 +124,6 @@ void BoomChrome::updateButtons(){
  const juce::String labels[]{
   local("CHAINE","CHAIN"),local("MESURES","METERS"),
   local("REGLAGES","SETTINGS"),local("AIDE","HELP"),
-  english?"EN":"FR",
   "A","B",local("SAUV. A","SAVE A"),local("SAUV. B","SAVE B"),
   "A > B","B > A",local("NIVEAU","LEVEL")
  };
@@ -136,7 +135,6 @@ void BoomChrome::updateButtons(){
   local("Mesures audio","Audio measurements"),
   local("Reglages du plugin","Plugin settings"),
   local("Aide de BOOM","BOOM help"),
-  local("Changer de langue","Change language"),
   local("Rappeler la memoire A","Recall A"),
   local("Rappeler la memoire B","Recall B"),
   local("Enregistrer la memoire A","Store in A"),
@@ -150,9 +148,9 @@ void BoomChrome::updateButtons(){
  for(int i=0;i<4;++i)
   toolbarButtons[static_cast<size_t>(i)].setToggleState(activePage==pagesForButtons[i],
                                                         juce::dontSendNotification);
- toolbarButtons[5].setToggleState(selectedRecall==0,juce::dontSendNotification);
- toolbarButtons[6].setToggleState(selectedRecall==1,juce::dontSendNotification);
- toolbarButtons[11].setToggleState(levelEnabled,juce::dontSendNotification);
+ toolbarButtons[4].setToggleState(selectedRecall==0,juce::dontSendNotification);
+ toolbarButtons[5].setToggleState(selectedRecall==1,juce::dontSendNotification);
+ toolbarButtons[10].setToggleState(levelEnabled,juce::dontSendNotification);
 }
 void BoomChrome::resized(){
  const int w=getWidth(),h=getHeight();
@@ -183,20 +181,20 @@ void BoomChrome::resized(){
  // Fixed design proportions are scaled uniformly for 13-inch screens.
  const float r=std::min(1.f,float(w)/1230.f);
  const int margin=juce::roundToInt(13.f*r),gap=juce::jmax(3,juce::roundToInt(6.f*r));
- const int bw[]={91,97,109,73,56,38,38,73,73,58,58,88};
+ const int bw[]={91,97,109,73,38,38,73,73,58,58,88};
  int x=margin;
  const int buttonY=juce::jmax(2,juce::roundToInt(h*.16f));
  const int buttonH=juce::jlimit(21,38,juce::roundToInt(h*.67f));
- for(int i=0;i<5;++i){
+ for(int i=0;i<4;++i){
   const int width=juce::roundToInt(bw[i]*r);
   toolbarButtons[static_cast<size_t>(i)].setBounds(x,buttonY,width,buttonH);
   x+=width+gap;
  }
  int compareWidth=0;
- for(int i=5;i<12;++i)compareWidth+=juce::roundToInt(bw[i]*r)+gap;
+ for(int i=4;i<11;++i)compareWidth+=juce::roundToInt(bw[i]*r)+gap;
  const int rightX=w-margin-compareWidth;
  x=rightX;
- for(int i=5;i<12;++i){
+ for(int i=4;i<11;++i){
   const int width=juce::roundToInt(bw[i]*r);
   toolbarButtons[static_cast<size_t>(i)].setBounds(x,buttonY,width,buttonH);
   x+=width+gap;
@@ -210,7 +208,7 @@ void BoomChrome::paint(juce::Graphics& g){
  g.setColour(copper.withAlpha(.65f));
  g.fillRect(0,h-2,w,1);
  if(area==Area::Toolbar && getWidth()>1000){
-  const auto x=toolbarButtons[4].getRight()+11;
+  const auto x=toolbarButtons[3].getRight()+11;
   g.setColour(gold.withAlpha(.3f));
   g.drawVerticalLine(x,juce::roundToInt(.19f*h),
                      juce::roundToInt(.80f*h));
@@ -254,7 +252,7 @@ void BoomChrome::paint(juce::Graphics& g){
   // All comparison controls are genuine JUCE buttons placed on clean chrome.
   const float r=std::min(1.f,float(w)/1230.f);
   const int labelWidth=juce::roundToInt(78.f*r);
-  const int startRight=toolbarButtons[5].getX();
+  const int startRight=toolbarButtons[4].getX();
   textIn(g,english?"COMPARE":"COMPARER",
          {std::max(0,startRight-labelWidth-6),0,labelWidth,h},
          juce::jlimit(9.f,12.f,11.f*r),true,gold);
