@@ -18,6 +18,23 @@ bool in(juce::Point<float> p,float x,float y,float w,float h){
 }
 }
 
+// Choose the largest crisp, proportional size that fits the display work area.
+// Artwork coordinates are unchanged, so all existing mouse hit regions scale too.
+static juce::Point<int> boomFittedWindowSize(int originalWidth,int originalHeight){
+ const auto& displays=juce::Desktop::getInstance().getDisplays();
+ const auto* display=displays.getDisplayForPoint(juce::Desktop::getMousePosition());
+ if(display==nullptr)display=displays.getPrimaryDisplay();
+ if(display==nullptr)return {originalWidth,originalHeight};
+ const auto available=display->userArea;
+ // Reserve space for the DAW's plugin title bar and the OS window controls.
+ const int maxWidth=juce::jmax(1,available.getWidth()-44);
+ const int maxHeight=juce::jmax(1,available.getHeight()-72);
+ const float ratio=std::min(1.0f,std::min(float(maxWidth)/originalWidth,
+                                          float(maxHeight)/originalHeight));
+ return {juce::jmax(1,juce::roundToInt(originalWidth*ratio)),
+         juce::jmax(1,juce::roundToInt(originalHeight*ratio))};
+}
+
 BoomAudioProcessorEditor::BoomAudioProcessorEditor(BoomAudioProcessor& p)
  :AudioProcessorEditor(&p),processor(p){
  // Resources are discovered by original filename, not an assumed JUCE symbol.
@@ -58,9 +75,10 @@ BoomAudioProcessorEditor::BoomAudioProcessorEditor(BoomAudioProcessor& p)
  numericEdit.onFocusLost=[this]{if(editing.parameter.isNotEmpty())commitNumeric();};
  numericEdit.setVisible(false);
  setWantsKeyboardFocus(true);
- setResizable(false,false);  // The entire console fits a 13-inch display.
+ setResizable(false,false);  // Keep the full console visible, without scrollbars.
  refreshResults();
- setSize(1280,720);
+ const auto initialSize=boomFittedWindowSize(CW,CH);
+ setSize(initialSize.x,initialSize.y);
  resized();
  startTimerHz(30);
 }
@@ -96,12 +114,9 @@ void BoomAudioProcessorEditor::showPage(Page target){
  endGesture();cancelNumeric();
  if(target==page)return;
  page=target;
- if(page==Page::browser){
-  refreshResults();
-  setSize(1250,776);
- }else{
-  setSize(1280,720);
- }
+ if(page==Page::browser)refreshResults();
+ const auto fittedSize=boomFittedWindowSize(artWidth(),artHeight());
+ setSize(fittedSize.x,fittedSize.y);
  resized();repaint();
 }
 float BoomAudioProcessorEditor::read(const char* id)const noexcept{
