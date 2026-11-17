@@ -282,8 +282,16 @@ void BoomAudioProcessorEditor::mouseDown(const juce::MouseEvent& e){
   // Other pages inherit only console strip controls, not buried CHAIN rack.
   if(page!=Page::chain&&page!=Page::browser&&p.y>=96.f&&p.y<340.f)return;
   if(item.kind==Kind::knob||item.kind==Kind::field){
+   focusedKnob=-1;
+   if(item.kind==Kind::knob){
+    constexpr const char* keys[]={"inputDb","eq60","eq120","eq3k","eq6k","eq10k","push"};
+    for(int i=0;i<7;++i)
+     if(juce::String(item.id)==keys[i]){focusedKnob=i;break;}
+    if(focusedKnob>=0)grabKeyboardFocus();
+   }
    beginGesture(item,e);
-  }else doAction(item,e);
+  }else{focusedKnob=-1;doAction(item,e);}
+  repaint();
   return;
  }
 }
@@ -300,6 +308,25 @@ void BoomAudioProcessorEditor::mouseDrag(const juce::MouseEvent& e){
   if(e.mods.isAltDown())delta*=.20f;
   write(dragParameter.toRawUTF8(),dragStartValue+delta,false);
  }
+}
+void BoomAudioProcessorEditor::mouseMove(const juce::MouseEvent& e){
+ const auto* hit=zoneAt(pointOf(e));
+ int next=-1;
+ if(hit!=nullptr&&hit->kind==Kind::knob){
+  constexpr const char* keys[]={"inputDb","eq60","eq120","eq3k","eq6k","eq10k","push"};
+  for(int i=0;i<7;++i)
+   if(juce::String(hit->id)==keys[i]){next=i;break;}
+ }
+ if(next!=hoveredKnob){
+  hoveredKnob=next;
+  setMouseCursor(next>=0?juce::MouseCursor::PointingHandCursor:
+                          juce::MouseCursor::NormalCursor);
+  repaint();
+ }
+}
+void BoomAudioProcessorEditor::mouseExit(const juce::MouseEvent&){
+ if(hoveredKnob>=0){hoveredKnob=-1;repaint();}
+ setMouseCursor(juce::MouseCursor::NormalCursor);
 }
 void BoomAudioProcessorEditor::mouseUp(const juce::MouseEvent&){
  const bool numericClick=dragging&&!dragMoved&&dragZone!=nullptr&&dragZone->kind==Kind::field;
@@ -341,7 +368,24 @@ void BoomAudioProcessorEditor::mouseWheelMove(
  AudioProcessorEditor::mouseWheelMove(e,wheel);
 }
 bool BoomAudioProcessorEditor::keyPressed(const juce::KeyPress& k){
+ const auto code=k.getKeyCode();
+ if(focusedKnob>=0&&hasKeyboardFocus(false)){
+  const bool increase=code==juce::KeyPress::upKey||code==juce::KeyPress::rightKey;
+  const bool decrease=code==juce::KeyPress::downKey||code==juce::KeyPress::leftKey;
+  if(increase||decrease){
+   constexpr const char* keys[]={"inputDb","eq60","eq120","eq3k","eq6k","eq10k","push"};
+   const char* id=keys[focusedKnob];
+   if(const auto* param=processor.state().getParameter(id)){
+    const auto range=param->getNormalisableRange();
+    float step=range.interval>0.f?range.interval:(range.end-range.start)*.01f;
+    if(k.getModifiers().isShiftDown())step*=.2f;
+    write(id,read(id)+(increase?step:-step));
+   }
+   return true;
+  }
+ }
  if(k==juce::KeyPress::escapeKey){
+  focusedKnob=-1;repaint();
   cancelNumeric();
   if(page==Page::browser)showPage(Page::chain);
   return true;

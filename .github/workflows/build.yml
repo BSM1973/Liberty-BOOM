@@ -27,6 +27,8 @@ jobs:
         run: python3 Tests/native_chrome_contract.py
       - name: Verify BOOM phase 2 typography, browser and geometry
         run: python3 Tests/ui_phase2_contract.py
+      - name: Verify phase 3 focus, hover, margins and 13-inch layouts
+        run: python3 Tests/ui_phase3_contract.py
       - name: Configure dependency-free DSP tests
         run: cmake -S . -B build-dsp -DBOOM_DSP_ONLY=ON -DCMAKE_BUILD_TYPE=Release
       - name: Build DSP tests

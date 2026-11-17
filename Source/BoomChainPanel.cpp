@@ -23,15 +23,20 @@ constexpr const char* namesEN[]={
 }
 void BoomChainPanel::CopperLook::drawButtonBackground(
  juce::Graphics& g,juce::Button& button,const juce::Colour&,bool hover,bool down){
- auto r=button.getLocalBounds().toFloat().reduced(1.f);
- const bool active=button.getToggleState();
+ const auto r=button.getLocalBounds().toFloat().reduced(1.f);
+ const bool active=button.isEnabled()&&button.getToggleState();
  juce::ColourGradient fill(active?burgundy:charcoal,r.getTopLeft(),
-                            (hover||down)?burgundy:wood,r.getBottomLeft(),false);
- g.setGradientFill(fill);
- g.fillRoundedRectangle(r,5.f);
- g.setColour(active?gold:((hover||down)?copper:copper.withAlpha(.64f)));
+                            (button.isEnabled()&&(hover||down))?burgundy:wood,
+                            r.getBottomLeft(),false);
+ g.setGradientFill(fill);g.fillRoundedRectangle(r,5.f);
+ g.setColour(!button.isEnabled()?copper.withAlpha(.25f):
+             active?gold:((hover||down)?gold.withAlpha(.82f):copper.withAlpha(.7f)));
  g.drawRoundedRectangle(r,5.f,active?1.7f:1.f);
- if(active){g.setColour(gold);g.fillRect(r.getX()+6,r.getBottom()-3,r.getWidth()-12,1.f);}
+ if(active){
+  g.setColour(gold);g.fillRect(r.getX()+6,r.getBottom()-3,
+                               juce::jmax(0.f,r.getWidth()-12),1.f);
+ }
+ boom::ui::theme::focusRing(g,r,button.hasKeyboardFocus(true),5.f);
 }
 void BoomChainPanel::CopperLook::drawButtonText(
  juce::Graphics& g,juce::TextButton& b,bool,bool){
@@ -42,7 +47,7 @@ void BoomChainPanel::CopperLook::drawButtonText(
 }
 void BoomChainPanel::CopperLook::drawRotarySlider(
  juce::Graphics& g,int x,int y,int width,int height,float proportional,
- float fromAngle,float toAngle,juce::Slider&){
+ float fromAngle,float toAngle,juce::Slider& slider){
  const auto bounds=juce::Rectangle<float>(float(x),float(y),float(width),float(height));
  const auto side=std::min(bounds.getWidth(),bounds.getHeight())-5.f;
  const auto centre=bounds.getCentre();
@@ -63,6 +68,10 @@ void BoomChainPanel::CopperLook::drawRotarySlider(
  juce::Point<float> tip(centre.x+std::sin(valueAngle)*radius*.56f,
                         centre.y-std::cos(valueAngle)*radius*.56f);
  g.setColour(ivory);g.drawLine(centre.x,centre.y,tip.x,tip.y,2.f);
+ if(slider.hasKeyboardFocus(true)){
+  g.setColour(ivory.withAlpha(.86f));
+  g.drawEllipse(bounds.reduced(1.5f),1.5f);
+ }
 }
 void BoomChainPanel::CopperLook::drawToggleButton(
  juce::Graphics& g,juce::ToggleButton& button,bool hover,bool pressed){
@@ -70,8 +79,9 @@ void BoomChainPanel::CopperLook::drawToggleButton(
  const bool enabled=button.getToggleState();
  g.setColour(enabled?burgundy:charcoal);
  g.fillRoundedRectangle(bounds,5.f);
- g.setColour(enabled?gold:(hover||pressed?copper:copper.withAlpha(.55f)));
+ g.setColour(enabled?gold:(hover||pressed?gold.withAlpha(.82f):copper.withAlpha(.62f)));
  g.drawRoundedRectangle(bounds,5.f,1.1f);
+ boom::ui::theme::focusRing(g,bounds,button.hasKeyboardFocus(true),5.f);
  const float cy=bounds.getCentreY();
  g.setColour(enabled?gold:juce::Colour::fromRGB(87,66,62));
  g.fillEllipse(bounds.getX()+7,cy-4,8.f,8.f);
@@ -96,12 +106,14 @@ BoomChainPanel::BoomChainPanel(BoomAudioProcessor& p):processor(p){
  for(int i=0;i<7;++i){
   auto& tab=tabButtons[static_cast<std::size_t>(i)];
   tab.setLookAndFeel(&look);
+  tab.setWantsKeyboardFocus(true);
   tab.setMouseCursor(juce::MouseCursor::PointingHandCursor);
   tab.onClick=[this,i]{selectModule(i);};
   addAndMakeVisible(tab);
  }
  for(auto* b:{&visibilityButton,&resetButton}){
   b->setLookAndFeel(&look);
+  b->setWantsKeyboardFocus(true);
   b->setMouseCursor(juce::MouseCursor::PointingHandCursor);
   addAndMakeVisible(*b);
  }
@@ -186,6 +198,7 @@ void BoomChainPanel::addRotary(
  c->slider.setColour(juce::Slider::textBoxOutlineColourId,copper.withAlpha(.55f));
  c->slider.setColour(juce::Slider::textBoxHighlightColourId,burgundy);
  c->slider.setLookAndFeel(&look);
+ c->slider.setWantsKeyboardFocus(true);
  c->slider.textFromValueFunction=[multiplier,unit=juce::String(unit),digits](double value){
   return juce::String(value*multiplier,digits)+unit;
  };
@@ -228,6 +241,7 @@ void BoomChainPanel::addToggle(
  t->primary=primary;
  t->button.setButtonText(title);
  t->button.setLookAndFeel(&look);
+ t->button.setWantsKeyboardFocus(true);
  t->button.setColour(juce::ToggleButton::textColourId,ivory);
  t->button.setMouseCursor(juce::MouseCursor::PointingHandCursor);
  t->button.setTooltip(juce::String(title)+"  -  "+juce::String(parameter));
@@ -308,13 +322,14 @@ void BoomChainPanel::resized(){
  const int resetW=juce::jmax(90,w*10/100);
  const int bypassW=juce::jmax(90,w*10/100);
  const int tabsX=pad+title;
- const int tabsW=juce::jmax(7*54,w-tabsX-hideW-resetW-bypassW-4*pad);
+ const int resetX=w-hideW-resetW-bypassW-3*pad;
+ const int tabsW=juce::jmax(7*27,resetX-tabsX-pad);
  const int tabW=tabsW/7;
  for(int i=0;i<7;++i)
   tabButtons[static_cast<std::size_t>(i)].setBounds(
-   tabsX+i*tabW,pad/2,juce::jmax(45,tabW-4),header-7);
+   tabsX+i*tabW,pad/2,juce::jmax(26,tabW-4),header-7);
  visibilityButton.setBounds(w-hideW-pad,pad/2,hideW,header-7);
- resetButton.setBounds(w-hideW-resetW-bypassW-3*pad,pad/2,resetW,header-7);
+ resetButton.setBounds(resetX,pad/2,resetW,header-7);
  for(auto& c:toggles)if(c->primary)
   c->button.setBounds(w-hideW-bypassW-2*pad,pad/2,bypassW,header-7);
  if(!expanded)return;
@@ -374,11 +389,6 @@ void BoomChainPanel::paint(juce::Graphics& g){
  }
  g.setColour(gold.withAlpha(.22f));
  g.drawHorizontalLine(header+2,9.f,float(getWidth()-9));
- const auto bypass=std::find_if(toggles.begin(),toggles.end(),
-  [this](const auto& t){return t->module==currentModule&&t->primary;});
- const bool bypassed=bypass!=toggles.end()&&(*bypass)->button.getToggleState();
- g.setColour(bypassed?copper:juce::Colour::fromRGB(126,197,146));
- g.fillEllipse(float(getWidth()-23),float(header+9),7.f,7.f);
- g.setColour(gold.withAlpha(.68f));g.setFont(font(11));
- g.drawText(bypassed?"BYPASS":"DSP ACTIF",getWidth()-120,header+3,93,20,juce::Justification::centredRight);
+ // Active/bypass information belongs to the module's native toggle button.
+ // No status text is overpainted on the header actions.
 }

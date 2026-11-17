@@ -21,6 +21,8 @@ public:
  void paint(juce::Graphics&)override;
  void resized()override;
  bool keyPressed(const juce::KeyPress&)override;
+ void mouseMove(const juce::MouseEvent&)override;
+ void mouseExit(const juce::MouseEvent&)override;
 private:
  struct Item{bool user=false;int index=0;int category=-1;int style=-1;
              juce::String name;std::uint32_t tags=0;};
@@ -54,7 +56,7 @@ private:
  std::vector<Item> rows;
  boom::browser::Mode mode=boom::browser::Mode::Presets;
  boom::browser::Tag tag=boom::browser::Tag::All;
- int category=-1,chosen=-1;
+ int category=-1,chosen=-1,hoveredIndex=-1,hoveredCategory=-1;
  bool english=false,grid=false,favoritesFilter=false;
  bool confirmDelete=false;
  std::unique_ptr<juce::FileChooser> chooser;

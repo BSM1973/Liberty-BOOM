@@ -160,6 +160,11 @@ void BoomAudioProcessorEditor::paintKnobs(juce::Graphics& g){
   g.drawLine(start.x+1.3f,start.y+1.3f,tip.x+1.3f,tip.y+1.3f,4.f);
   g.setColour(ivory);
   g.drawLine(start.x,start.y,tip.x,tip.y,juce::jmax(2.f,radius*.065f));
+  const bool focus=focusedKnob==i&&hasKeyboardFocus(false);
+  if(focus||hoveredKnob==i){
+   g.setColour(focus?ivory.withAlpha(.94f):gold.withAlpha(.75f));
+   g.drawEllipse(disk.expanded(2.f),focus?2.f:1.3f);
+  }
  }
 
  // Dynamic gain figures replace the original static readings inside the skin.

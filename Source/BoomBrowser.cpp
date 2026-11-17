@@ -31,14 +31,22 @@ juce::String categoryDisplay(int index,bool english){
 
 void BoomBrowser::BrassButtons::drawButtonBackground(
  juce::Graphics& g,juce::Button& b,const juce::Colour&,bool hovered,bool pressed){
- auto r=b.getLocalBounds().toFloat().reduced(.5f);
- const bool active=b.getToggleState();
- juce::ColourGradient fill(active?burgundy:juce::Colour::fromRGB(55,24,28),
-                           r.getTopLeft(),pressed?bg:(hovered?burgundy:bg),r.getBottomLeft(),false);
- g.setGradientFill(fill);g.fillRoundedRectangle(r,4.f);
- g.setColour(active?gold:(hovered?bronze:bronze.withAlpha(.65f)));
- g.drawRoundedRectangle(r,4.f,active?1.6f:1.f);
- if(active){g.setColour(gold.withAlpha(.85f));g.fillRect(r.getX()+5.f,r.getBottom()-3.f,r.getWidth()-10.f,1.5f);}
+ auto r=b.getLocalBounds().toFloat().reduced(1.f);
+ const bool enabled=b.isEnabled(),active=enabled&&b.getToggleState();
+ const auto top=!enabled?bg:active?burgundy:
+                 (hovered?juce::Colour::fromRGB(79,29,37):juce::Colour::fromRGB(55,24,28));
+ const auto bottom=pressed?juce::Colour::fromRGB(85,24,33):bg;
+ juce::ColourGradient fill(top,r.getTopLeft(),bottom,r.getBottomLeft(),false);
+ g.setGradientFill(fill);g.fillRoundedRectangle(r,boom::ui::theme::cornerRadius);
+ g.setColour(!enabled?bronze.withAlpha(.25f):
+             active?gold:(hovered?gold.withAlpha(.84f):bronze.withAlpha(.70f)));
+ g.drawRoundedRectangle(r,boom::ui::theme::cornerRadius,active?1.65f:1.f);
+ if(active){
+  g.setColour(gold.withAlpha(.86f));
+  g.fillRect(r.getX()+boom::ui::theme::inset,r.getBottom()-3.f,
+             juce::jmax(0.f,r.getWidth()-2.f*boom::ui::theme::inset),1.5f);
+ }
+ boom::ui::theme::focusRing(g,r,b.hasKeyboardFocus(true));
 }
 void BoomBrowser::BrassButtons::drawButtonText(
  juce::Graphics& g,juce::TextButton& b,bool,bool){
@@ -51,6 +59,7 @@ void BoomBrowser::BrassButtons::drawButtonText(
 void BoomBrowser::styleButton(juce::TextButton& b,juce::String text,
                               std::function<void()> callback){
  b.setLookAndFeel(&buttonsLook);
+ b.setWantsKeyboardFocus(true);
  b.setButtonText(std::move(text));
  b.setTooltip(b.getButtonText());
  b.setMouseCursor(juce::MouseCursor::PointingHandCursor);
@@ -100,12 +109,17 @@ BoomBrowser::BoomBrowser(BoomAudioProcessor& processor,std::function<void()> clo
  nameEdit.onReturnKey=[this]{if(mode==boom::browser::Mode::User)renameCurrent();else saveCurrent();};
  tagsEdit.onReturnKey=[this]{writeUserTags();};
  categories.setModel(&categoryModel);
+ categories.setWantsKeyboardFocus(true);
+ categories.addMouseListener(this,true);
  categories.setColour(juce::ListBox::backgroundColourId,bg);
  categories.setOutlineThickness(0);
  categories.setRowHeight(24);
  categories.setMouseCursor(juce::MouseCursor::PointingHandCursor);
  addAndMakeVisible(categories);
  items.setModel(this);
+ items.setWantsKeyboardFocus(true);
+ items.addMouseListener(this,true);
+ items.setMouseCursor(juce::MouseCursor::PointingHandCursor);
  items.setColour(juce::ListBox::backgroundColourId,bg);
  items.setOutlineThickness(0);
  items.setRowHeight(30);
@@ -129,6 +143,8 @@ BoomBrowser::BoomBrowser(BoomAudioProcessor& processor,std::function<void()> clo
  refresh(false);
 }
 BoomBrowser::~BoomBrowser(){
+ items.removeMouseListener(this);
+ categories.removeMouseListener(this);
  items.setModel(nullptr);
  categories.setModel(nullptr);
  auto clear=[this](juce::TextButton& b){b.setLookAndFeel(nullptr);};
@@ -353,8 +369,16 @@ void BoomBrowser::CategoryModel::paintListBoxItem(
        boom::browser::style(i).category:boom::browser::factory(i).category)==row-1)++count;
  }
  const bool active=row==(owner.category==-1?0:owner.category==10?11:owner.category+1);
- g.setColour(active?burgundy:((row%2)?panel:bg));g.fillRect(0,0,w,h);
+ const bool hovered=owner.hoveredCategory==row;
+ g.setColour(active?burgundy:(hovered?juce::Colour::fromRGB(66,28,34):
+                             ((row%2)?panel:bg)));
+ g.fillRect(0,0,w,h);
  if(active){g.setColour(gold);g.fillRect(0,0,3,h);}
+ else if(hovered){g.setColour(bronze);g.fillRect(0,0,2,h);}
+ if(selected&&owner.categories.hasKeyboardFocus(true)){
+  g.setColour(ivory.withAlpha(.9f));
+  g.drawRect(1,1,w-2,h-2,1);
+ }
  g.setColour(selected||active?ivory:gold);g.setFont(f(juce::jmin(13.5f,h*.60f),active));
  g.drawFittedText(name,8,0,w-40,h,juce::Justification::centredLeft,1);
  g.setColour(gold.withAlpha(.8f));
@@ -400,10 +424,19 @@ void BoomBrowser::paintListBoxItem(
   if(index>=static_cast<int>(rows.size()))continue;
   const auto& item=rows[static_cast<std::size_t>(index)];
   const bool active=index==chosen;
+  const bool hovered=index==hoveredIndex;
   auto cell=juce::Rectangle<int>(grid?c*(w/2)+3:3,2,grid?w/2-7:w-7,h-4).toFloat();
-  g.setColour(active?burgundy:((row+c)%2?juce::Colour::fromRGB(37,20,23):panel));
+  g.setColour(active?burgundy:(hovered?juce::Colour::fromRGB(61,28,34):
+                                          ((row+c)%2?juce::Colour::fromRGB(37,20,23):panel)));
   g.fillRoundedRectangle(cell,3.f);
-  if(active){g.setColour(gold);g.drawRoundedRectangle(cell.reduced(.5f),3.f,1.2f);}
+  if(active||hovered){
+   g.setColour(active?gold:bronze.withAlpha(.9f));
+   g.drawRoundedRectangle(cell.reduced(.5f),3.f,active?1.5f:1.f);
+  }
+  if(active&&items.hasKeyboardFocus(true)){
+   g.setColour(ivory.withAlpha(.9f));
+   g.drawRoundedRectangle(cell.reduced(2.5f),3.f,1.3f);
+  }
   g.setColour(ivory);g.setFont(f(grid?13.5f:14.5f,active));
   const int x=int(cell.getX())+10;
   g.drawFittedText(item.name,x,int(cell.getY())+1,

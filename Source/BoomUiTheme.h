@@ -22,4 +22,16 @@ inline constexpr float caption=10.5f;
 inline constexpr float label=12.f;
 inline constexpr float body=13.5f;
 inline constexpr float heading=19.f;
+inline constexpr float cornerRadius=4.f;
+inline constexpr float focusStroke=1.75f;
+inline constexpr int inset=6;
+
+// Consistent focus indication for keyboard-controlled native JUCE widgets.
+// The ring remains distinct from both hover and active state.
+inline void focusRing(juce::Graphics& g,juce::Rectangle<float> bounds,
+                     bool focused,float radius=cornerRadius) {
+ if(!focused)return;
+ g.setColour(ivory().withAlpha(.92f));
+ g.drawRoundedRectangle(bounds.reduced(1.4f),radius,focusStroke);
+}
 }

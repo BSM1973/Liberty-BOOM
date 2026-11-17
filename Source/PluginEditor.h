@@ -22,6 +22,8 @@ public:
  void mouseDown(const juce::MouseEvent&) override;
  void mouseDrag(const juce::MouseEvent&) override;
  void mouseUp(const juce::MouseEvent&) override;
+ void mouseMove(const juce::MouseEvent&) override;
+ void mouseExit(const juce::MouseEvent&) override;
  void mouseDoubleClick(const juce::MouseEvent&) override;
  void mouseWheelMove(const juce::MouseEvent&, const juce::MouseWheelDetails&) override;
  bool keyPressed(const juce::KeyPress&) override;
@@ -34,6 +36,7 @@ private:
  std::unique_ptr<BoomChainPanel> nativeChain;
  std::unique_ptr<BoomChrome> nativeHeader,nativeToolbar;
  int selectedRecall=-1;
+ int hoveredKnob=-1,focusedKnob=-1;
  juce::Image chainSkin,browserSkin;
  std::array<juce::Image,7> chainFaces,browserFaces;
  Page page=Page::chain;

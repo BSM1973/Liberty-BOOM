@@ -160,9 +160,9 @@ void BoomBrowser::resized(){
  put(import,566,307,102,30);
  put(exportFile,675,307,102,30);
  put(load,1217,307,316,30);
- put(nameEdit,1230,212,294,25);
- put(tagsEdit,1230,261,205,25);
- put(writeTags,1441,261,82,25);
+ put(nameEdit,1230,218,294,26);
+ put(tagsEdit,1230,266,205,26);
+ put(writeTags,1441,266,82,26);
  items.setRowHeight(juce::jmax(21,juce::roundToInt((grid?65.f:31.f)*getHeight()/345.f)));
  categories.setRowHeight(juce::jmax(19,juce::roundToInt(24.f*getHeight()/345.f)));
  syncButtons();
@@ -224,11 +224,11 @@ void BoomBrowser::paintPreview(juce::Graphics& g){
  }
  write(item->name,1231,148,292,29,19.f,true,true);
  if(mode==boom::browser::Mode::User){
-  write(english?"USER PRESET":"PRESET UTILISATEUR",1232,180,290,15,11.f);
-  rule(201);
-  write(english?"PRESET NAME":"NOM DU MASTER",1232,199,290,12,10.5f,true);
-  write(english?"CUSTOM TAGS":"TAGS PERSONNALIS\u00C9S",1232,246,290,12,10.5f,true);
-  return; // Native edit fields occupy y=212..238 and y=261..287.
+  write(english?"USER PRESET":"PRESET UTILISATEUR",1232,178,290,15,11.f);
+  rule(196);
+  write(english?"PRESET NAME":"NOM DU MASTER",1232,202,290,12,10.5f,true);
+  write(english?"CUSTOM TAGS":"TAGS PERSONNAL\u00C9S",1232,247,290,13,10.5f,true);
+  return; // Native edit fields occupy y=218..244 and y=266..292.
  }
  write(categoryName(*item)+" / "+styleName(*item),
        1232,179,290,19,11.f,false,true);
@@ -249,4 +249,31 @@ void BoomBrowser::paintPreview(juce::Graphics& g){
  const auto tags=tagsText(*item);
  write((english?"TAGS : ":"TAGS : ")+(tags.isEmpty()?"-":tags),
        1232,267,290,24,11.5f);
+}
+
+
+void BoomBrowser::mouseMove(const juce::MouseEvent& event){
+ // Mouse hover only changes the highlight; loading never occurs on hover.
+ const auto listPos=event.getEventRelativeTo(&items).getPosition();
+ const auto categoryPos=event.getEventRelativeTo(&categories).getPosition();
+ int nextItem=-1,nextCategory=-1;
+ if(items.getLocalBounds().contains(listPos)){
+  const int row=items.getRowContainingPosition(listPos.x,listPos.y);
+  if(row>=0){
+   const int col=grid&&listPos.x>=items.getWidth()/2?1:0;
+   const int index=grid?row*2+col:row;
+   if(index>=0&&index<static_cast<int>(rows.size()))nextItem=index;
+  }
+ }
+ if(categories.getLocalBounds().contains(categoryPos)){
+  nextCategory=categories.getRowContainingPosition(categoryPos.x,categoryPos.y);
+ }
+ if(hoveredIndex!=nextItem){hoveredIndex=nextItem;items.repaint();}
+ if(hoveredCategory!=nextCategory){
+  hoveredCategory=nextCategory;categories.repaint();
+ }
+}
+void BoomBrowser::mouseExit(const juce::MouseEvent&){
+ if(hoveredIndex>=0){hoveredIndex=-1;items.repaint();}
+ if(hoveredCategory>=0){hoveredCategory=-1;categories.repaint();}
 }

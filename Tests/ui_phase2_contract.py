@@ -36,9 +36,9 @@ assert "status.setTooltip(msg)" in browser
 assert "load.setTooltip" in browser
 assert 'if(grid&&chosen>=0&&chosen/2==row)return' in browser
 assert 'put(status,791,306,414,31)' in preview
-assert 'put(nameEdit,1230,212,294,25)' in preview
-assert 'put(tagsEdit,1230,261,205,25)' in preview
-assert 'put(writeTags,1441,261,82,25)' in preview
+assert 'put(nameEdit,1230,218,294,26)' in preview
+assert 'put(tagsEdit,1230,266,205,26)' in preview
+assert 'put(writeTags,1441,266,82,26)' in preview
 assert 'write(item->name,1231,148,292,29,19.f,true,true)' in preview
 for metric in ('"DRIVE"','"PUSH"','"GLUE"','"PLAFOND"'):
     assert metric in preview, f"Missing current DSP data: {metric}"
@@ -56,17 +56,17 @@ rects={
  "load":(1217,307,316,30),
  "export":(675,307,102,30),
  "preview":(1221,125,311,175),
- "name":(1230,212,294,25),
- "tags":(1230,261,205,25),
- "write":(1441,261,82,25),
- "userTitle":(1232,199,290,12),
- "userTagTitle":(1232,246,290,12),
+ "name":(1230,218,294,26),
+ "tags":(1230,266,205,26),
+ "write":(1441,266,82,26),
+ "userTitle":(1232,202,290,12),
+ "userTagTitle":(1232,247,290,13),
 }
 for a,b in [("status","load"),("status","export"),("name","tags"),
             ("tags","write"),("userTitle","name"),("userTagTitle","tags")]:
     assert not intersects(rects[a],rects[b]), f"Layout collision {a}/{b}"
 # No drawn preview content may compete with editable fields in user mode.
-assert "return; // Native edit fields occupy y=212..238 and y=261..287." in preview
+assert "return; // Native edit fields occupy y=218..244 and y=266..292." in preview
 assert '"\\u00C9GALISEUR"' in (root/"Source/BoomChainPanel.cpp").read_text() or (
        r'"\u00C9GALISEUR"' in (root/"Source/BoomChainPanel.cpp").read_text())
 print("BOOM phase 2 PASS: shared native typography, clean footer, localized "

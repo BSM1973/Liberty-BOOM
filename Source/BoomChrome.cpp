@@ -20,17 +20,25 @@ void textIn(juce::Graphics& g,const juce::String& text,juce::Rectangle<int> r,
 }
 void BoomChrome::BrassLook::drawButtonBackground(
  juce::Graphics& g,juce::Button& b,const juce::Colour&,bool hover,bool pressed){
- const auto r=b.getLocalBounds().toFloat().reduced(.7f);
- const auto active=b.getToggleState();
- juce::ColourGradient fill(active?juce::Colour::fromRGB(110,32,44):
-                                  juce::Colour::fromRGB(47,22,23),
-                          r.getTopLeft(),hover||pressed?burgundy:body,
-                          r.getBottomLeft(),false);
- g.setGradientFill(fill);g.fillRoundedRectangle(r,4.f);
- g.setColour(active?gold:hover?copper:gold.withAlpha(.48f));
- g.drawRoundedRectangle(r,4.f,active?1.5f:1.f);
- if(active){g.setColour(gold.withAlpha(.75f));g.fillRect(r.getX()+6.f,r.getBottom()-3.f,
-                                                       std::max(0.f,r.getWidth()-12.f),1.5f);}
+ const auto r=b.getLocalBounds().toFloat().reduced(1.f);
+ const bool enabled=b.isEnabled();
+ const bool active=b.getToggleState()&&enabled;
+ const bool focus=b.hasKeyboardFocus(true);
+ const auto top=enabled?(active?juce::Colour::fromRGB(111,32,43):
+                               (hover?juce::Colour::fromRGB(68,29,35):
+                                      juce::Colour::fromRGB(47,22,23))):body;
+ const auto bottom=enabled&&(hover||pressed)?burgundy:body;
+ juce::ColourGradient fill(top,r.getTopLeft(),bottom,r.getBottomLeft(),false);
+ g.setGradientFill(fill);g.fillRoundedRectangle(r,boom::ui::theme::cornerRadius);
+ g.setColour(!enabled?copper.withAlpha(.26f):
+            active?gold:(hover||pressed?gold.withAlpha(.85f):copper.withAlpha(.73f)));
+ g.drawRoundedRectangle(r,boom::ui::theme::cornerRadius,active?1.5f:1.f);
+ if(active){
+  g.setColour(gold.withAlpha(.8f));
+  g.fillRect(r.getX()+boom::ui::theme::inset,r.getBottom()-3.f,
+             juce::jmax(0.f,r.getWidth()-2.f*boom::ui::theme::inset),1.5f);
+ }
+ boom::ui::theme::focusRing(g,r,focus);
 }
 void BoomChrome::BrassLook::drawButtonText(
  juce::Graphics& g,juce::TextButton& b,bool,bool){
@@ -69,6 +77,7 @@ BoomChrome::~BoomChrome(){
 }
 void BoomChrome::wireButton(juce::TextButton& button,Command id,juce::String name){
  button.setLookAndFeel(&look);
+ button.setWantsKeyboardFocus(true);
  button.setButtonText(std::move(name));
  button.setMouseCursor(juce::MouseCursor::PointingHandCursor);
  button.onClick=[this,id]{if(command)command(id);};
@@ -135,12 +144,13 @@ void BoomChrome::updateButtons(){
 void BoomChrome::resized(){
  const int w=getWidth(),h=getHeight();
  if(area==Area::Header){
-  const int y=juce::roundToInt(.34f*h),bh=std::max(23,juce::roundToInt(.36f*h));
+  const int y=juce::roundToInt(.34f*h);
+  const int bh=juce::jlimit(22,36,juce::roundToInt(.36f*h));
   const int leftX=juce::roundToInt(.027f*w),leftW=juce::roundToInt(.235f*w);
   const int arrowW=juce::jlimit(23,34,juce::roundToInt(.025f*w));
   const int rightX=juce::roundToInt(.752f*w);
   const int rightW=juce::roundToInt(.216f*w);
-  const int gap=4;
+  const int gap=juce::jmax(4,juce::roundToInt(.004f*w));
   headerButtons[0].setBounds(leftX,y,leftW,bh);
   headerButtons[1].setBounds(rightX,y,arrowW,bh);
   headerButtons[2].setBounds(rightX+arrowW+gap,y,
@@ -154,7 +164,7 @@ void BoomChrome::resized(){
  const int bw[]={91,97,109,73,56,38,38,73,73,58,58,88};
  int x=margin;
  const int buttonY=juce::jmax(2,juce::roundToInt(h*.16f));
- const int buttonH=juce::jmax(23,juce::roundToInt(h*.67f));
+ const int buttonH=juce::jlimit(21,38,juce::roundToInt(h*.67f));
  for(int i=0;i<5;++i){
   const int width=juce::roundToInt(bw[i]*r);
   toolbarButtons[static_cast<size_t>(i)].setBounds(x,buttonY,width,buttonH);
