@@ -1,5 +1,6 @@
 #include "PluginEditor.h"
 #include "BoomUiTheme.h"
+#include "BoomSafeText.h"
 #include <algorithm>
 #include <cmath>
 
@@ -42,9 +43,9 @@ void BoomAudioProcessorEditor::paintBrowser(juce::Graphics& g){
    g.setColour(active?gold:copper.withAlpha(.45f));
    g.drawRoundedRectangle(float(x),float(y+1),360.f,54.f,4.f,1.f);
    g.setColour(ivory);g.setFont(font(14,active));
-   g.drawFittedText(name,x+13,y+4,308,25,juce::Justification::centredLeft,1);
+   g.drawFittedText(boom::ui::text::safeUpperText(name),x+13,y+4,308,25,juce::Justification::centredLeft,1);
    g.setColour(gold);g.setFont(font(11));
-   g.drawFittedText(group,x+13,y+30,305,17,juce::Justification::centredLeft,1);
+   g.drawFittedText(boom::ui::text::safeUpperText(group),x+13,y+30,305,17,juce::Justification::centredLeft,1);
    g.setColour(row.isUser?copper:processor.isFavorite(row.index)?gold:gold.withAlpha(.4f));
    g.setFont(font(10,true));
    g.drawText(row.isUser?"USER":processor.isFavorite(row.index)?"FAV":"",
@@ -55,10 +56,10 @@ void BoomAudioProcessorEditor::paintBrowser(juce::Graphics& g){
    g.fillRect(376,y,731,34);
    if(active){g.setColour(copper);g.fillRect(376,y,3,34);}
    g.setColour(ivory);g.setFont(font(15,active));
-   g.drawFittedText(name,405,y+1,262,31,juce::Justification::centredLeft,1);
+   g.drawFittedText(boom::ui::text::safeUpperText(name),405,y+1,262,31,juce::Justification::centredLeft,1);
    g.setColour(gold);g.setFont(font(13));
-   g.drawFittedText(group,680,y+1,209,31,juce::Justification::centredLeft,1);
-   g.drawFittedText(style,901,y+1,164,31,juce::Justification::centredLeft,1);
+   g.drawFittedText(boom::ui::text::safeUpperText(group),680,y+1,209,31,juce::Justification::centredLeft,1);
+   g.drawFittedText(boom::ui::text::safeUpperText(style),901,y+1,164,31,juce::Justification::centredLeft,1);
    g.setColour(row.isUser?copper:processor.isFavorite(row.index)?gold:gold.withAlpha(.5f));
    g.setFont(font(10,true));
    g.drawText(row.isUser?"USER":processor.isFavorite(row.index)?"FAV":"",
@@ -101,7 +102,7 @@ void BoomAudioProcessorEditor::paintBrowser(juce::Graphics& g){
   if(r.isUser){
    name=processor.userPresetName(r.index);
    group=english?"User preset":"Preset utilisateur";
-   description="R\u00E9glages enregistr\u00E9s dans le projet DAW. Import / export .boom.";
+   description="Reglages enregistres dans le projet DAW. Import / export .boom.";
   }else{
    const auto p=boom::makePreset(r.index);
    params=p.params;
@@ -109,24 +110,24 @@ void BoomAudioProcessorEditor::paintBrowser(juce::Graphics& g){
    group=boom::categories[static_cast<std::size_t>(p.category)];
    style=boom::styles()[static_cast<std::size_t>(p.style)].name;
    const char* descriptions[]={
-    "Master commercial \u00E9quilibr\u00E9, adapt\u00E9 aux plateformes modernes.",
-    "Dynamique musicale, guitares et pr\u00E9sence naturelle.",
-    "Puissance, graves pr\u00E9cis et transitoires contr\u00F4l\u00E9s.",
-    "Basses ma\u00EEtris\u00E9es, voix distinctes et punch rythmique.",
-    "\u00C9nergie \u00E9lectronique et spectre large.",
+    "Master commercial equilibre, adapte aux plateformes modernes.",
+    "Dynamique musicale, guitares et presence naturelle.",
+    "Puissance, graves precis et transitoires controles.",
+    "Basses maitrisees, voix distinctes et punch rythmique.",
+    "Energie electronique et spectre large.",
     "Traitement subtil et naturel pour les instruments.",
     "Profondeur et ampleur pour l'image.",
-    "Harmoniques et chaleur analogique ma\u00EEtris\u00E9es.",
-    "Coh\u00E9rence pour les plateformes de diffusion.",
+    "Harmoniques et chaleur analogique maitrisees.",
+    "Coherence pour les plateformes de diffusion.",
     "Ajustement technique et finition du master."};
    description=descriptions[juce::jlimit(0,9,p.category)];
   }
   g.setColour(ivory);g.setFont(font(24,true));
-  g.drawFittedText(name,1168,143,299,34,juce::Justification::centredLeft,1);
+  g.drawFittedText(boom::ui::text::safeUpperText(name),1168,143,299,34,juce::Justification::centredLeft,1);
   g.setColour(gold);g.setFont(font(12));
-  g.drawFittedText(group+"  |  "+style,1168,181,318,21,juce::Justification::centredLeft,1);
+  g.drawFittedText(boom::ui::text::safeUpperText(group+"  |  "+style),1168,181,318,21,juce::Justification::centredLeft,1);
   g.setColour(ivory);g.setFont(font(12));
-  g.drawFittedText(description,1168,207,324,42,juce::Justification::topLeft,3);
+  g.drawFittedText(boom::ui::text::safeUpperText(description),1168,207,324,42,juce::Justification::topLeft,3);
   g.setColour(copper.withAlpha(.5f));g.drawHorizontalLine(253,1168.f,1495.f);
   if(!r.isUser){
    const int mode=juce::jlimit(0,2,params.color);
@@ -164,26 +165,27 @@ void BoomAudioProcessorEditor::paintOther(juce::Graphics& g){
  g.drawRoundedRectangle(48.f,107.f,1550.f,230.f,5.f,1.2f);
  g.setColour(gold);g.setFont(font(19.f,true));
  const bool meters=page==Page::meters,settings=page==Page::settings;
- g.drawText(meters?"MESURES DE PR\u00C9CISION":
-  settings?"R\u00C9GLAGES DE MASTERING":"GUIDE DE LA CONSOLE BOOM",
+ g.drawText(meters?(english?"PRECISION METERS":"MESURES DE PRECISION"):
+  settings?(english?"MASTERING SETTINGS":"REGLAGES DE MASTERING"):
+           (english?"BOOM CONSOLE GUIDE":"GUIDE DE LA CONSOLE BOOM"),
   72,116,1100,32,juce::Justification::centredLeft);
  g.setColour(copper.withAlpha(.55f));g.drawHorizontalLine(151,72.f,1566.f);
  if(meters){
   const auto m=processor.lastMeters();
   struct Reading{const char* title;float value;const char* unit;bool linear;};
   const std::array<Reading,12> vals{{
-   {"ENTR\u00C9E G",m.inputPeakL,"dBFS",true},
-   {"ENTR\u00C9E D",m.inputPeakR,"dBFS",true},
-   {"SORTIE G",m.outputPeakL,"dBFS",true},
-   {"SORTIE D",m.outputPeakR,"dBFS",true},
-   {"VU GAUCHE",m.vuL,"dBFS",true},
-   {"VU DROITE",m.vuR,"dBFS",true},
+   {english?"INPUT L":"ENTREE G",m.inputPeakL,"dBFS",true},
+   {english?"INPUT R":"ENTREE D",m.inputPeakR,"dBFS",true},
+   {english?"OUTPUT L":"SORTIE G",m.outputPeakL,"dBFS",true},
+   {english?"OUTPUT R":"SORTIE D",m.outputPeakR,"dBFS",true},
+   {english?"VU LEFT":"VU GAUCHE",m.vuL,"dBFS",true},
+   {english?"VU RIGHT":"VU DROITE",m.vuR,"dBFS",true},
    {"LUFS M",m.momentaryLufs,"LUFS",false},
    {"LUFS S",m.shortTermLufs,"LUFS",false},
    {"LUFS I",m.integratedLufs,"LUFS",false},
    {"LRA",m.lra,"LU",false},
    {"TRUE PEAK EST.",m.truePeak,"dBTP*",true},
-   {"CORR\u00C9LATION",m.correlation,"",false}
+   {english?"CORRELATION":"CORRELATION",m.correlation,"",false}
   }};
   const int x0=75,y0=163,cellW=242,cellH=53,gapX=6;
   for(std::size_t i=0;i<vals.size();++i){
@@ -204,11 +206,11 @@ void BoomAudioProcessorEditor::paintOther(juce::Graphics& g){
  }else if(settings){
   struct Setting{const char* title;const char* parameter;int x,y;float scale;const char* unit;};
   const Setting settingsFields[]={
-   {"TRIM GAUCHE","inputLTrim",93,175,1.f," dB"},
-   {"TRIM DROIT","inputRTrim",443,175,1.f," dB"},
-   {"COMPENSATION COULEUR","colorOut",793,175,1.f," dB"},
-   {"ATTAQUE DE-ESSER","deAtt",1143,175,1.f," ms"},
-   {"SATURATION","colorDrive",93,260,100.f," %"}
+   {english?"LEFT TRIM":"TRIM GAUCHE","inputLTrim",93,175,1.f," dB"},
+   {english?"RIGHT TRIM":"TRIM DROIT","inputRTrim",443,175,1.f," dB"},
+   {english?"COLOR COMPENSATION":"COMPENSATION COULEUR","colorOut",793,175,1.f," dB"},
+   {english?"DE-ESSER ATTACK":"ATTAQUE DE-ESSER","deAtt",1143,175,1.f," ms"},
+   {english?"SATURATION":"SATURATION","colorDrive",93,260,100.f," %"}
   };
   for(const auto& s:settingsFields){
    g.setColour(gold);g.setFont(font(12.5f,true));
@@ -219,24 +221,34 @@ void BoomAudioProcessorEditor::paintOther(juce::Graphics& g){
   const char* modes[]={"TRANSPARENT","PUNCH","LOUD"};
   const int chosen=juce::jlimit(0,2,int(read("limitMode")+.5f));
   g.setColour(gold);g.setFont(font(12.5f,true));
-  g.drawText("MODE LIMITEUR",443,260,310,19,juce::Justification::centredLeft);
+  g.drawText(english?"LIMITER MODE":"MODE LIMITEUR",443,260,310,19,
+             juce::Justification::centredLeft);
   paintReading(g,{443,282,215,29},modes[chosen]);
-  g.setColour(gold);g.drawText("LIEN TRIMS G/D",793,260,310,19,
+  g.setColour(gold);g.drawText(english?"LINK TRIMS L/R":"LIEN TRIMS G/D",793,260,310,19,
                               juce::Justification::centredLeft);
-  paintReading(g,{793,282,215,29},read("inputLink")>.5f?"LI\u00C9S":"D\u00C9LI\u00C9S");
-  g.setColour(gold);g.drawText("LANGUE",1143,260,308,19,
+  paintReading(g,{793,282,215,29},read("inputLink")>.5f?
+        (english?"LINKED":"LIES"):(english?"UNLINKED":"DELIES"));
+  g.setColour(gold);g.drawText(english?"LANGUAGE":"LANGUE",1143,260,308,19,
                               juce::Justification::centredLeft);
-  paintReading(g,{1143,282,215,29},english?"ENGLISH":"FRAN\u00C7AIS");
+  paintReading(g,{1143,282,215,29},english?"ENGLISH":"FRANCAIS");
  }else{
   g.setColour(ivory);g.setFont(font(16.f));
-  g.drawFittedText(
-   "1. Choisir un Style puis un des 100 presets.\n"
-   "2. Ajuster INPUT DRIVE, les 5 bandes EQ et PUSH.\n"
-   "3. Dans CHA\u00CENE, chaque valeur se r\u00E8gle au glisser, clic ou molette.\n"
-   "4. Clic droit sur une valeur : saisie num\u00E9rique ou remise \u00E0 z\u00E9ro.\n"
-   "5. A/B compare deux \u00E9tats. NIVEAU active la compensation d'\u00E9coute.\n"
-   "6. Les VU, les niveaux et la r\u00E9duction de gain proviennent du DSP.",
-   85,165,1420,156,juce::Justification::topLeft,7);
+  const juce::String help=english?
+   juce::String(
+    "1. Choose a Style, then one of the 100 presets.\n"
+    "2. Adjust INPUT DRIVE, the five EQ bands and PUSH.\n"
+    "3. In CHAIN, drag, click or scroll to change a value.\n"
+    "4. Right-click a value to enter a number or reset it.\n"
+    "5. A/B compares two states. LEVEL enables level matching.\n"
+    "6. VU, levels and gain reduction use real DSP measurements.")
+   :juce::String(
+    "1. Choisir un Style puis un des 100 presets.\n"
+    "2. Ajuster INPUT DRIVE, les 5 bandes EQ et PUSH.\n"
+    "3. Dans CHAINE, chaque valeur se regle au glisser, clic ou molette.\n"
+    "4. Clic droit sur une valeur : saisie numerique ou remise a zero.\n"
+    "5. A/B compare deux etats. NIVEAU active la compensation d'ecoute.\n"
+    "6. Les VU, les niveaux et la reduction de gain proviennent du DSP.");
+  g.drawFittedText(help,85,165,1420,156,juce::Justification::topLeft,7);
  }
 }
 bool BoomAudioProcessorEditor::handleAuxiliary(

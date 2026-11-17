@@ -130,21 +130,20 @@ void BoomAudioProcessorEditor::openColorMenu(){
   if(self!=nullptr&&value>0)self->write("color",float(value-1));
  });
 }
+void BoomAudioProcessorEditor::setInterfaceLanguage(bool useEnglish){
+ // Two native header buttons directly set the existing FR/EN APVTS choice.
+ // This works in hosts which disallow asynchronous plugin popup menus.
+ write("language",useEnglish?1.f:0.f);
+ english=read("language")>.5f; // Reflect the actual persisted parameter.
+ if(nativeChain!=nullptr)nativeChain->setEnglish(english);
+ if(nativeBrowser!=nullptr)nativeBrowser->updateLanguage(english);
+ refreshChrome();
+ repaint();
+}
 void BoomAudioProcessorEditor::openLanguageMenu(){
- juce::PopupMenu menu;
- menu.addItem(1,"FR - Francais",true,read("language")<.5f);
- menu.addItem(2,"EN - English",true,read("language")>.5f);
- juce::Component::SafePointer<BoomAudioProcessorEditor> self(this);
- menu.showMenuAsync(popupOptions(this),[self](int value){
-  if(self==nullptr||value<1||value>2)return;
-  // Preserve parameter ID and choice indices 0/1 in saved DAW projects.
-  self->write("language",float(value-1));
-  self->english=value==2;
-  if(self->nativeBrowser!=nullptr)self->nativeBrowser->updateLanguage(self->english);
-  if(self->nativeChain!=nullptr)self->nativeChain->setEnglish(self->english);
-  self->refreshChrome();
-  self->repaint();
- });
+ // Legacy settings/toolbar language controls are intentionally a direct
+ // toggle, not a plugin-host-dependent PopupMenu.
+ setInterfaceLanguage(!(read("language")>.5f));
 }
 void BoomAudioProcessorEditor::openTrimsMenu(){
  juce::PopupMenu menu;

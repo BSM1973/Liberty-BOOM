@@ -10,7 +10,7 @@ public:
  enum class Area {Header,Toolbar};
  enum class Command {
   Style, Preset, Previous, Next,
-  Chain, Meters, Settings, Help, Language,
+  Chain, Meters, Settings, Help, Language, French, English,
   RecallA, RecallB, StoreA, StoreB, CopyAtoB, CopyBtoA, Level
  };
  using OnCommand=std::function<void(Command)>;
@@ -30,7 +30,7 @@ private:
  Area area;
  OnCommand command;
  BrassLook look;
- std::array<juce::TextButton,5> headerButtons;
+ std::array<juce::TextButton,6> headerButtons;
  std::array<juce::TextButton,12> toolbarButtons;
  juce::String styleName,presetName;
  bool english=false,levelEnabled=false;

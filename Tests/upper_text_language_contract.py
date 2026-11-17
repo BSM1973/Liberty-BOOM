@@ -19,6 +19,20 @@ cmake=source("CMakeLists.txt")
 workflow=source(".github/workflows/build.yml")
 
 assert "Source/BoomSafeText.h" in cmake
+editor=source("Source/PluginEditor.cpp")
+panels=source("Source/PluginEditorPanels.cpp")
+chain_h=source("Source/BoomChainPanel.h")
+assert "case Cmd::French:setInterfaceLanguage(false)" in editor
+assert "case Cmd::English:setInterfaceLanguage(true)" in editor
+assert "case Cmd::Language:setInterfaceLanguage(!english)" in editor
+assert "parameterId,frenchLabel" in chain_h, "Each control must carry a translatable label"
+assert "englishTitle(" in chain
+assert "for(auto& c:rotaries)" in chain and "for(auto& c:choices)" in chain
+assert "for(auto& t:toggles)" in chain
+assert "PRECISION METERS" in panels and "MASTERING SETTINGS" in panels
+assert "BOOM CONSOLE GUIDE" in panels and "Choose a Style" in panels
+assert "\\u00" not in panels, "Legacy auxiliary pages still use unsafe Unicode escapes"
+assert panels.isascii()
 assert "safeUpperText(const juce::String& input)" in safe
 assert "out+=juce::String::charToString" in safe
 assert "if(cp>=32u&&cp<=126u)" in safe
@@ -27,20 +41,26 @@ for codepoint in ["0x00E9","0x00C9","0x02C6","0x00A9","0x00C3","0xFFFD"]:
     # explicitly referenced as constants.
     if codepoint!="0xFFFD":
         assert codepoint in safe, f"Missing common French/mojibake handling: {codepoint}"
-assert "std::array<juce::TextButton,5> headerButtons;" in chrome_h
-assert 'wireButton(headerButtons[4],Command::Language,"LANGUE : FR")' in chrome
-assert 'headerButtons[4].setBounds(langX,langY,langW' in chrome
-assert 'headerButtons[4].setButtonText(english?"LANG : EN":"LANGUE : FR")' in chrome
+assert "std::array<juce::TextButton,6> headerButtons;" in chrome_h
+assert 'wireButton(headerButtons[4],Command::French,"FR")' in chrome
+assert 'wireButton(headerButtons[5],Command::English,"EN")' in chrome
+assert 'headerButtons[4].setBounds(langX,langY,langSingle,bh)' in chrome
+assert 'headerButtons[5].setBounds(langX+langSingle+langGap' in chrome
+assert 'headerButtons[4].setToggleState(!english,juce::dontSendNotification)' in chrome
+assert 'headerButtons[5].setToggleState(english,juce::dontSendNotification)' in chrome
 assert "headerButtons[4].setTooltip" in chrome
 assert 'g.drawFittedText(boom::ui::text::safeUpperText(b.getButtonText())' in chrome
 assert 'styleName=boom::ui::text::safeUpperText(style)' in chrome
 assert 'presetName=boom::ui::text::safeUpperText(preset)' in chrome
 assert "boom::ui::text::safeUpperText(text)" in chrome
-assert 'menu.addItem(1,"FR - Francais"' in menu
-assert 'menu.addItem(2,"EN - English"' in menu
-assert 'self->write("language",float(value-1))' in menu
-assert 'self->nativeBrowser->updateLanguage(self->english)' in menu
-assert 'self->refreshChrome()' in menu
+assert 'void BoomAudioProcessorEditor::setInterfaceLanguage(bool useEnglish)' in menu
+assert 'write("language",useEnglish?1.f:0.f)' in menu
+assert 'english=read("language")>.5f' in menu
+assert 'nativeBrowser->updateLanguage(english)' in menu
+assert 'nativeChain->setEnglish(english)' in menu
+assert 'refreshChrome()' in menu
+assert 'showMenuAsync' not in menu.split('void BoomAudioProcessorEditor::openLanguageMenu(){',1)[1].split('\n}',1)[0]
+assert 'setInterfaceLanguage(!(read("language")>.5f))' in menu
 assert 'addChoice(l,"language","Language",{"FR","EN"})' in processor
 assert 'juce::String::charToString' in safe
 
@@ -66,10 +86,13 @@ assert "python3 Tests/upper_text_language_contract.py" in workflow
 # At 13-inch fit sizes, the new language button does not overlap
 # the native preset selector and sits after the centered BOOM inscription.
 for width in (790,960,1180,1440,1592,1672):
-    x=round(.662*width)
-    w=round(.084*width)
+    x=round(.664*width)
+    w=round(.082*width)
+    gap=max(3,round(.004*width))
+    single=(w-gap)//2
     preset_start=round(.752*width)
     assert x>round(.655*width), width
+    assert x+single+gap<w+ x, width
     assert x+w<preset_start, (width,x+w,preset_start)
 print("BOOM upper text/language PASS: display-only glyph cleanup, "
-      "5 native header controls, FR/EN APVTS choices and nonoverlap on 13-inch windows")
+      "6 native header controls, direct FR/EN APVTS choices and nonoverlap on 13-inch windows")

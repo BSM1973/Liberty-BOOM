@@ -20,12 +20,14 @@ public:
 private:
  struct RotaryControl {
   int module=0;
+  juce::String parameterId,frenchLabel;
   juce::Label label;
   juce::Slider slider;
   std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> attachment;
  };
  struct ChoiceControl {
   int module=0;
+  juce::String parameterId,frenchLabel;
   juce::Label label;
   juce::ComboBox box;
   std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> attachment;
@@ -33,6 +35,7 @@ private:
  struct ToggleControl {
   int module=0;
   bool primary=false;
+  juce::String parameterId,frenchLabel;
   juce::ToggleButton button;
   std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> attachment;
  };

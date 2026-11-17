@@ -2,6 +2,7 @@
 #include "BoomUiTheme.h"
 #include "BoomSafeText.h"
 #include <algorithm>
+#include <utility>
 #include <cmath>
 
 namespace {
@@ -21,6 +22,29 @@ constexpr const char* namesFR[]={
 constexpr const char* namesEN[]={
  "INPUT","ANALOG","EQUALIZER","DE-ESSER","COMPRESSOR","LIMITER","OUTPUT"
 };
+// Titles are presentation-only: parameter IDs and DSP attachments never change.
+juce::String englishTitle(const juce::String& id,const juce::String& french){
+ static constexpr std::pair<const char*,const char*> translated[]{
+  {"inputLTrim","LEFT TRIM"},{"inputRTrim","RIGHT TRIM"},
+  {"inputLink","LINK L/R"},{"color","CIRCUIT"},{"colorDrive","SATURATION"},
+  {"colorMix","MIX"},{"colorPushCharacter","PUSH CHARACTER"},
+  {"colorOut","OUTPUT COMPENSATION"},{"colorBypass","BYPASS"},
+  {"eqBypass","BYPASS"},{"deFreq","FREQUENCY"},{"deTh","THRESHOLD"},
+  {"deAmt","INTENSITY"},{"deAtt","ATTACK"},{"deRel","RELEASE"},
+  {"deEssBypass","BYPASS"},{"compTh","THRESHOLD"},
+  {"compAttack","ATTACK"},{"compRelease","RELEASE"},
+  {"compMakeup","MAKEUP GAIN"},{"compMix","PARALLEL MIX"},
+  {"compStereoLink","STEREO LINK"},{"compBypass","BYPASS"},
+  {"limitTh","THRESHOLD"},{"ceiling","CEILING"},
+  {"limitRelease","RELEASE"},{"limitMode","CHARACTER"},
+  {"limiterStereoLink","STEREO LINK"},{"limiterBypass","BYPASS"},
+  {"outDb","OUTPUT LEVEL"},{"outPeakGuard","PEAK PROTECTION"},
+  {"outputLevelComp","LEVEL MATCH"},{"mono","MONO MONITORING"},
+  {"meterInput","INPUT METER"},{"outputBypass","BYPASS"},
+ };
+ for(const auto& entry:translated)if(id==entry.first)return entry.second;
+ return french;
+}
 }
 void BoomChainPanel::CopperLook::drawButtonBackground(
  juce::Graphics& g,juce::Button& button,const juce::Colour&,bool hover,bool down){
@@ -186,7 +210,10 @@ void BoomChainPanel::addRotary(
  int module,const char* parameter,const char* title,float multiplier,const char* unit,int digits){
  auto c=std::make_unique<RotaryControl>();
  c->module=module;
- c->label.setText(boom::ui::text::safeUpperText(title),juce::dontSendNotification);
+ c->parameterId=parameter;
+ c->frenchLabel=boom::ui::text::safeUpperText(title);
+ c->label.setText(english?englishTitle(c->parameterId,c->frenchLabel):
+                          c->frenchLabel,juce::dontSendNotification);
  c->label.setJustificationType(juce::Justification::centred);
  c->label.setColour(juce::Label::textColourId,ivory);
  c->label.setFont(font(13.5f,true));
@@ -219,7 +246,10 @@ void BoomChainPanel::addChoice(
  int module,const char* parameter,const char* title,std::initializer_list<const char*> values){
  auto c=std::make_unique<ChoiceControl>();
  c->module=module;
- c->label.setText(boom::ui::text::safeUpperText(title),juce::dontSendNotification);
+ c->parameterId=parameter;
+ c->frenchLabel=boom::ui::text::safeUpperText(title);
+ c->label.setText(english?englishTitle(c->parameterId,c->frenchLabel):
+                          c->frenchLabel,juce::dontSendNotification);
  c->label.setJustificationType(juce::Justification::centred);
  c->label.setFont(font(13.5f,true));
  c->label.setColour(juce::Label::textColourId,ivory);
@@ -240,7 +270,10 @@ void BoomChainPanel::addToggle(
  auto t=std::make_unique<ToggleControl>();
  t->module=module;
  t->primary=primary;
- t->button.setButtonText(boom::ui::text::safeUpperText(title));
+ t->parameterId=parameter;
+ t->frenchLabel=boom::ui::text::safeUpperText(title);
+ t->button.setButtonText(english?englishTitle(t->parameterId,t->frenchLabel):
+                                 t->frenchLabel);
  t->button.setLookAndFeel(&look);
  t->button.setWantsKeyboardFocus(true);
  t->button.setColour(juce::ToggleButton::textColourId,ivory);
@@ -286,6 +319,15 @@ void BoomChainPanel::setEnglish(bool en){
  english=en;
  for(int i=0;i<7;++i)
   tabButtons[static_cast<std::size_t>(i)].setButtonText(moduleName(i,english));
+ for(auto& c:rotaries)
+  c->label.setText(english?englishTitle(c->parameterId,c->frenchLabel):
+                           c->frenchLabel,juce::dontSendNotification);
+ for(auto& c:choices)
+  c->label.setText(english?englishTitle(c->parameterId,c->frenchLabel):
+                           c->frenchLabel,juce::dontSendNotification);
+ for(auto& t:toggles)
+  t->button.setButtonText(english?englishTitle(t->parameterId,t->frenchLabel):
+                                  t->frenchLabel);
  resetButton.setButtonText(english?"RESET MODULE":"REINITIALISER");
  updateVisibility();
 }

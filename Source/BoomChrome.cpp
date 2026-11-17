@@ -59,8 +59,11 @@ BoomChrome::BoomChrome(Area which,OnCommand action)
   wireButton(headerButtons[1],Command::Previous,"<");
   wireButton(headerButtons[2],Command::Preset,"");
   wireButton(headerButtons[3],Command::Next,">");
-  wireButton(headerButtons[4],Command::Language,"LANGUE : FR");
-  headerButtons[4].setName("headerLanguage");
+  // Direct, native, separately clickable language choices: no popup required.
+  wireButton(headerButtons[4],Command::French,"FR");
+  wireButton(headerButtons[5],Command::English,"EN");
+  headerButtons[4].setName("headerFrench");
+  headerButtons[5].setName("headerEnglish");
   headerButtons[0].setName("headerStyle");
   headerButtons[2].setName("headerPreset");
  }else{
@@ -109,10 +112,12 @@ void BoomChrome::updateButtons(){
                                    "Parcourir les 100 presets d'usine");
   headerButtons[1].setTooltip(english?"Previous preset":"Preset precedent");
   headerButtons[3].setTooltip(english?"Next preset":"Preset suivant");
-  headerButtons[4].setButtonText(english?"LANG : EN":"LANGUE : FR");
-  headerButtons[4].setTooltip(english?"Choose language: French or English":
-                                      "Choisir la langue : Francais ou anglais");
-  headerButtons[4].setToggleState(true,juce::dontSendNotification);
+  headerButtons[4].setButtonText("FR");
+  headerButtons[5].setButtonText("EN");
+  headerButtons[4].setTooltip("Francais - activer l'interface en francais");
+  headerButtons[5].setTooltip("English - switch the interface to English");
+  headerButtons[4].setToggleState(!english,juce::dontSendNotification);
+  headerButtons[5].setToggleState(english,juce::dontSendNotification);
   return;
  }
  const auto local=[this](const char* fr,const char* en){return juce::String(english?en:fr);};
@@ -164,11 +169,15 @@ void BoomChrome::resized(){
   headerButtons[2].setBounds(rightX+arrowW+gap,y,
                              std::max(80,rightW-arrowW*2-gap*2),bh);
   headerButtons[3].setBounds(rightX+rightW-arrowW,y,arrowW,bh);
-  // Separate language selector in the empty top-right gap, never on BOOM text.
-  const int langX=juce::roundToInt(.662f*w);
-  const int langW=juce::roundToInt(.084f*w);
-  const int langY=juce::roundToInt(.12f*h);
-  headerButtons[4].setBounds(langX,langY,langW,juce::jlimit(22,32,juce::roundToInt(.30f*h)));
+  // Native FR / EN pair in the dedicated gap between BOOM and Presets.
+  const int langX=juce::roundToInt(.664f*w);
+  const int langTotal=juce::roundToInt(.082f*w);
+  const int langGap=juce::jmax(3,juce::roundToInt(.004f*w));
+  const int langSingle=(langTotal-langGap)/2;
+  const int langY=y;
+  headerButtons[4].setBounds(langX,langY,langSingle,bh);
+  headerButtons[5].setBounds(langX+langSingle+langGap,langY,
+                             langTotal-langSingle-langGap,bh);
   return;
  }
  // Fixed design proportions are scaled uniformly for 13-inch screens.
@@ -213,6 +222,10 @@ void BoomChrome::paint(juce::Graphics& g){
           juce::roundToInt(.23f*w),juce::roundToInt(.18f*h)},
          juce::jlimit(9.f,13.f,13.f*scale),true,gold,
          juce::Justification::centredLeft);
+  textIn(g,english?"LANGUAGE":"LANGUE",
+         {juce::roundToInt(.664f*w),juce::roundToInt(.10f*h),
+          juce::roundToInt(.082f*w),juce::roundToInt(.18f*h)},
+         juce::jlimit(9.f,13.f,13.f*scale),true,gold);
   textIn(g,english?"MASTERING PRESET":"PRESET DE MASTERING",
          {juce::roundToInt(.75f*w),juce::roundToInt(.10f*h),
           juce::roundToInt(.218f*w),juce::roundToInt(.18f*h)},

@@ -96,7 +96,9 @@ BoomAudioProcessorEditor::BoomAudioProcessorEditor(BoomAudioProcessor& p)
    case Cmd::Meters:showPage(Page::meters);break;
    case Cmd::Settings:showPage(Page::settings);break;
    case Cmd::Help:showPage(Page::help);break;
-   case Cmd::Language:openLanguageMenu();break;
+   case Cmd::Language:setInterfaceLanguage(!english);break;
+   case Cmd::French:setInterfaceLanguage(false);break;
+   case Cmd::English:setInterfaceLanguage(true);break;
    case Cmd::RecallA:processor.recallComparisonState(0);selectedRecall=0;break;
    case Cmd::RecallB:processor.recallComparisonState(1);selectedRecall=1;break;
    case Cmd::StoreA:processor.storeComparisonState(0);break;

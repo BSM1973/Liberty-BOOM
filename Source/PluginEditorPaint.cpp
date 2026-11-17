@@ -104,7 +104,7 @@ void BoomAudioProcessorEditor::paintSkin(juce::Graphics& g){
  }else{
   g.fillAll(juce::Colour::fromRGB(33,10,16));
   g.setColour(ivory);g.setFont(font(26,true));
-  g.drawText("BOOM  -  r\u00E9f\u00E9rence graphique manquante",50,40,artWidth()-100,55,
+  g.drawText("BOOM - reference graphique manquante",50,40,artWidth()-100,55,
              juce::Justification::centred);
  }
 }

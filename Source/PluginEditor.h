@@ -80,6 +80,7 @@ private:
  void openStyleFilter();
  void openColorMenu();
  void openLanguageMenu();
+ void setInterfaceLanguage(bool useEnglish);
  void openUserMenu();
  void openTrimsMenu();
  void saveUser();
