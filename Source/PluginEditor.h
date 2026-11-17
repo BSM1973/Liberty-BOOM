@@ -1,14 +1,14 @@
 #pragma once
 #include <JuceHeader.h>
 #include "PluginProcessor.h"
-#include <memory>
+#include "BOOMUIMap.h"
 #include <array>
-#include <optional>
+#include <memory>
 #include <vector>
 
-// BOOM v0.7: the user-approved console artwork is the actual plugin skin.
-// Interactive hit regions are mapped to its native image pixel coordinates;
-// every audio control uses APVTS and the current DSP engine.
+// One authoritative, interactive hardware surface. The reference artwork is
+// the skin; transparent hit regions invoke real APVTS parameters or actions.
+// No opaque JUCE buttons are placed on top of the pictured hardware.
 class BoomAudioProcessorEditor final : public juce::AudioProcessorEditor,
                                        private juce::Timer {
 public:
@@ -20,72 +20,78 @@ public:
  void mouseDrag(const juce::MouseEvent&) override;
  void mouseUp(const juce::MouseEvent&) override;
  void mouseDoubleClick(const juce::MouseEvent&) override;
- void mouseWheelMove(const juce::MouseEvent&,const juce::MouseWheelDetails&) override;
+ void mouseWheelMove(const juce::MouseEvent&, const juce::MouseWheelDetails&) override;
  bool keyPressed(const juce::KeyPress&) override;
 private:
- enum class Page { chain,browser,meters,settings,help };
- struct PresetRow { bool user=false; int index=-1; };
- struct Knob {float x,y,r; const char* id; float tx,ty;};
- struct Field {juce::Rectangle<float> area; const char* id;float scale=1.f;const char* unit="";int decimals=1;};
- BoomAudioProcessor& proc;
+ enum class Page {chain,browser,meters,settings,help};
+ struct Row {bool isUser=false;int index=-1;};
+ struct Numeric {juce::String parameter;float scale=1.f;};
+ BoomAudioProcessor& processor;
  juce::Image chainSkin,browserSkin;
+ std::array<juce::Image,7> chainFaces,browserFaces;
  Page page=Page::chain;
- juce::TextEditor search,saveName,numericEditor;
- juce::String editingId;
- float editingScale=1.f;
- std::optional<Field> pendingNumeric;
- bool dragChanged=false;
- bool gridMode=false;
- std::unique_ptr<juce::FileChooser> chooser;
- std::vector<PresetRow> rows;
- int category=0,styleFilter=-1,selectedRow=0,firstVisible=0;
- int selectedComparison=0;
- bool english=false,deleteArmed=false;
- juce::String notice;
- juce::String dragged;
- juce::Point<float> startPosition;
- float startValue=0;
- bool isGesture=false;
- float smoothVuL=0.0f,smoothVuR=0.0f;
- bool showMeterNeedles=true;
- static constexpr int chainW=1672,chainH=941,browserW=1592,browserH=988;
- int artW()const noexcept;
- int artH()const noexcept;
- juce::Point<float> artPoint(const juce::MouseEvent&)const;
- juce::Rectangle<int> artRect(int x,int y,int w,int h)const;
+ juce::TextEditor search,userPresetName,numericEdit;
+ std::unique_ptr<juce::FileChooser> fileChooser;
+ std::vector<Row> results;
+ int selectedRow=-1,firstVisible=0,category=-1,styleFilter=-1;
+ bool grid=false,english=false,dragging=false,dragMoved=false;
+ bool deleteConfirmation=false,clipHold=false;
+ float vuL=-20.f,vuR=-20.f,dragStartValue=0.f;
+ juce::Point<float> dragOrigin;
+ juce::String dragParameter,notice;
+ Numeric editing;
+ const boom::ui::Zone* editZone=nullptr;
+ const boom::ui::Zone* dragZone=nullptr;
+ static constexpr int CW=boom::ui::chainWidth,CH=boom::ui::chainHeight;
+ static constexpr int BW=boom::ui::browserWidth,BH=boom::ui::browserHeight;
+ int artWidth()const noexcept;
+ int artHeight()const noexcept;
+ juce::Point<float> pointOf(const juce::MouseEvent&)const;
+ juce::Rectangle<int> canvasRect(float,float,float,float)const;
  void showPage(Page);
- void timerCallback() override;
- float raw(const char* id)const;
- void setParam(const char* id,float rawValue);
- void toggle(const char* id);
- void beginDrag(const char* id,const juce::MouseEvent&);
- void finishDrag();
- const Knob* activeKnob(juce::Point<float>)const;
- const Field* chainField(juce::Point<float>)const;
- const std::array<Field,21>& chainFields()const;
- void renderChainControls(juce::Graphics&);
- void openFieldEditor(const Field&);
- void commitNumeric();
- void cancelNumeric();
- void showTrimsMenu();
- void cyclePreset(int delta);
- void renderKnobs(juce::Graphics&);
- void renderDynamicText(juce::Graphics&);
- void renderMeterNeedles(juce::Graphics&);
- void renderBrowser(juce::Graphics&);
- void renderExtra(juce::Graphics&);
- void refreshRows();
- void selectRow(int row);
- void loadRow();
- void choosePreset(int index);
- void chooseStyle(int index);
- void showPresetsMenu();
- void showStyleMenu();
- void showUserMenu();
- void saveCurrent();
+ void paintSkin(juce::Graphics&);
+ void paintKnobs(juce::Graphics&);
+ void paintMeter(juce::Graphics&);
+ void paintHead(juce::Graphics&);
+ void paintChain(juce::Graphics&);
+ void paintBrowser(juce::Graphics&);
+ void paintOther(juce::Graphics&);
+ void paintReading(juce::Graphics&,juce::Rectangle<float>,juce::String,bool emphasis=false);
+ void paintSwitch(juce::Graphics&,const boom::ui::Zone&);
+ void refreshResults();
+ void changeSelected(int);
+ void loadSelected();
+ void cyclePreset(int);
+ void loadPreset(int);
+ void loadStyle(int);
+ void selectCategory(int);
+ void openStyleMenu();
+ void openPresetMenu();
+ void openStyleFilter();
+ void openColorMenu();
+ void openLanguageMenu();
+ void openUserMenu();
+ void openTrimsMenu();
+ void saveUser();
+ void renameUser();
+ void deleteUser();
  void importUser();
  void exportUser();
- void handleClick(juce::Point<float>,const juce::MouseEvent&);
- void drawValue(juce::Graphics&,const juce::String&,float x,float y,float w,float h,int decimals=1)const;
+ bool selectedIsUser()const;
+ float read(const char*)const noexcept;
+ void write(const char*,float,bool gesture=true);
+ void toggle(const char*);
+ const boom::ui::Zone* zoneAt(juce::Point<float>)const noexcept;
+ void doAction(const boom::ui::Zone&,const juce::MouseEvent&);
+ void endGesture();
+ void beginGesture(const boom::ui::Zone&,const juce::MouseEvent&);
+ void numericFor(const boom::ui::Zone&);
+ void numericFor(const char*,float,juce::Rectangle<float>);
+ void commitNumeric();
+ void cancelNumeric();
+ bool handleAuxiliary(juce::Point<float>,const juce::MouseEvent&);
+ void timerCallback() override;
+ void prepareFaces();
+ static void eraseReferenceNeedle(juce::Image&,juce::Point<float>,juce::Point<float>);
  JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(BoomAudioProcessorEditor)
 };

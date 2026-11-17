@@ -1,37 +1,41 @@
 #!/usr/bin/env python3
-"""Fail CI if a visible BOOM mastering control has no APVTS binding."""
+"""BOOM v0.9: all visible zones bind a real JUCE parameter or an implemented action.
+
+The geometry tests are also compiled in dependency-free C++ and check for
+any overlapped target rectangles in the original pixel space.
+"""
 from pathlib import Path
 import re
-root = Path(__file__).resolve().parents[1]
-processor = (root / "Source/PluginProcessor.cpp").read_text(encoding="utf-8")
-editor = (root / "Source/PluginEditor.cpp").read_text(encoding="utf-8")
-dsp = (root / "Source/BoomDSP.h").read_text(encoding="utf-8")
-registered = set(re.findall(r'add(?:Float|Bool|Choice)\(l,\s*"([^"]+)"', processor))
-visible_numeric = (
-    "inputDb", "eq60", "eq120", "eq3k", "eq6k", "eq10k", "push",
-    "colorMix", "colorDrive", "deFreq", "deTh", "deAmt", "deRel",
-    "compTh", "compRatio", "compAttack", "compRelease", "compMakeup",
-    "compMix", "limitTh", "ceiling", "limitRelease", "outDb"
-)
-visible_switches = (
-    "colorBypass", "eqBypass", "deEssBypass", "compBypass",
-    "limiterBypass", "compStereoLink", "limiterStereoLink",
-    "limiterAutoRelease", "outPeakGuard", "outputLevelComp",
-    "inputLink", "mono", "bypass", "meterInput", "language"
-)
-for name in visible_numeric + visible_switches:
-    assert name in registered, f"Missing APVTS parameter: {name}"
-    assert f'"{name}"' in editor, f"Missing GUI binding for {name}"
-for marker in (
-    "void BoomAudioProcessorEditor::renderChainControls",
-    "void BoomAudioProcessorEditor::commitNumeric()",
-    "void BoomAudioProcessorEditor::openFieldEditor(",
-    "void BoomAudioProcessorEditor::showTrimsMenu()",
-    "void BoomAudioProcessorEditor::cyclePreset("
-):
-    assert marker in editor, f"Missing interactive GUI hook: {marker}"
-assert 'notice="Auto Release : contrôlé' not in editor
-for ident in ("limiterAutoRelease", "limiterStereoLink", "outputPeakGuard", "outputLevelComp"):
-    assert ident in dsp, f"Missing DSP path for {ident}"
-print(f"BOOM UI contract PASS: {len(visible_numeric)} numeric controls, "
-      f"{len(visible_switches)} switches, and preset/navigation hooks.")
+root=Path(__file__).resolve().parents[1]
+ui=(root/"Source/BOOMUIMap.h").read_text(encoding="utf-8")
+processor=(root/"Source/PluginProcessor.cpp").read_text(encoding="utf-8")
+editor=(root/"Source/PluginEditor.cpp").read_text(encoding="utf-8")
+menus=(root/"Source/PluginEditorMenus.cpp").read_text(encoding="utf-8")
+view=(root/"Source/PluginEditorPaint.cpp").read_text(encoding="utf-8")
+panels=(root/"Source/PluginEditorPanels.cpp").read_text(encoding="utf-8")
+cmake=(root/"CMakeLists.txt").read_text(encoding="utf-8")
+registered=set(re.findall(r'add(?:Float|Bool|Choice)\(l,\s*"([^"]+)"',processor))
+zones=re.findall(r'Kind::(knob|field|toggle|menu|action),"([^"]+)"',ui)
+assert zones and len(zones)>=100, f"Expected at least 100 individually mapped zones, got {len(zones)}"
+controls=[(kind,key) for kind,key in zones if kind in ("knob","field","toggle")]
+missing=sorted({key for kind,key in controls if key not in registered})
+assert not missing, "Clickable UI parameters absent from JUCE APVTS: "+", ".join(missing)
+for kind,key in zones:
+    if kind=="action" and not key.startswith("category"):
+        assert f'id=="{key}"' in editor, f"Missing command handler: {key}"
+    if kind=="menu":
+        assert f'id=="{key}"' in editor, f"Missing menu handler: {key}"
+assert "renderDynamicText" not in view
+assert "getPixelAt" in view and "paintKnobs" in view and "paintMeter" in view
+assert "refreshResults()" in menus and "loadFactoryPreset" in menus
+for expected in ("Source/PluginEditor.cpp","Source/PluginEditorPaint.cpp",
+                 "Source/PluginEditorPanels.cpp","Source/PluginEditorMenus.cpp",
+                 "Source/BOOMUIMap.h","Tests/ui_map_validation.cpp"):
+    assert expected in cmake, f"CMake source not registered: {expected}"
+for required in ("inputDb","eq60","eq120","eq3k","eq6k","eq10k",
+                 "push","colorPushCharacter","outputBypass","limiterAutoRelease",
+                 "outPeakGuard","outputLevelComp"):
+    assert required in registered, f"Required DSP control missing: {required}"
+print(f"BOOM real UI contract: PASS, {len(zones)} mapped zones, "
+      f"{len(controls)} parameter-using targets, "
+      f"{len(registered)} JUCE parameters, no unknown or fake control.")

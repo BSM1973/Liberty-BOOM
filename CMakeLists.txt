@@ -45,7 +45,8 @@ juce_add_plugin(BOOM
 juce_generate_juce_header(BOOM)
 target_sources(BOOM PRIVATE
  Source/PluginProcessor.h Source/PluginProcessor.cpp
- Source/PluginEditor.h Source/PluginEditor.cpp
+ Source/PluginEditor.h Source/PluginEditor.cpp Source/PluginEditorPaint.cpp
+ Source/PluginEditorPanels.cpp Source/PluginEditorMenus.cpp Source/BOOMUIMap.h
  Source/BoomDSP.h Source/LoudnessMeter.h Source/OversampledTube.h Source/FactoryLibrary.h)
 target_compile_definitions(BOOM PRIVATE JUCE_WEB_BROWSER=0 JUCE_USE_CURL=0 JUCE_VST3_CAN_REPLACE_VST2=0)
 target_link_libraries(BOOM PRIVATE
@@ -61,6 +62,10 @@ endif() # BOOM_DSP_ONLY
 
 include(CTest)
 if(BUILD_TESTING)
+ add_executable(boom_ui_map_validation Tests/ui_map_validation.cpp)
+ add_test(NAME BOOM_UI_MAP_VALIDATION COMMAND boom_ui_map_validation)
+ add_executable(boom_ui_dsp_contract Tests/ui_dsp_contract.cpp)
+ add_test(NAME BOOM_UI_DSP_CONTRACT COMMAND boom_ui_dsp_contract)
  add_executable(boom_dsp_smoke Tests/dsp_smoke.cpp)
  add_executable(boom_library_smoke Tests/library_smoke.cpp)
  add_test(NAME BOOM_DSP COMMAND boom_dsp_smoke)

@@ -21,6 +21,7 @@ struct Parameters {
  bool meterInput=false;
  int color=0; // 0 CLEAN, 1 TUBE, 2 TAPE
  float colorDrive=0.0f, colorMix=0.4f, colorOutputDb=0.0f;
+ float colorPushCharacter=50.0f;
  float deEssFreq=6500.0f,deEssThreshold=-18.0f,deEssAmount=0.0f;
  float deEssAttackMs=4.0f,deEssReleaseMs=100.0f;
  float compThreshold=-12.0f,compRatio=1.5f,compAttackMs=30.0f,compReleaseMs=220.0f;
@@ -29,6 +30,7 @@ struct Parameters {
  int limiterMode=0;
  float outputDb=0.0f;
  bool limiterAutoRelease=false,limiterStereoLink=true;
+ bool outputBypass=false;
  bool outputPeakGuard=true,outputLevelComp=false;
  bool colorBypass=false,eqBypass=false,deEssBypass=false,compBypass=false,limiterBypass=false;
  bool compStereoLink=true;
@@ -118,7 +120,7 @@ public:
   const float targetLTrim=dbToGain(clamp(p.inputTrimLDb,-12,12));
   const float targetRTrim=dbToGain(clamp(p.inputTrimRDb,-12,12));
   const float targetColorOutput=dbToGain(clamp(p.colorOutputDb,-12,12));
-  const float targetOutput=dbToGain(clamp(p.outputDb,-18,6));
+  const float targetOutput=p.outputBypass?1.0f:dbToGain(clamp(p.outputDb,-18,6));
   const float pushTarget=clamp(p.push*0.01f,0,1);
   float gainRedComp=0,gainRedLimit=0;
   const int requestedColor=std::clamp(p.color,0,2);
@@ -170,7 +172,8 @@ public:
    deEssBlend+=aFast*((p.deEssBypass?0.0f:1.0f)-deEssBlend);
    compBlend+=aFast*((p.compBypass?0.0f:1.0f)-compBlend);
    limiterBlend+=aFast*((p.limiterBypass?0.0f:1.0f)-limiterBlend);
-   const float effectiveDrive=clamp(drive+0.46f*push,0,1.5f);
+   const float character=clamp(p.colorPushCharacter*.01f,0.f,1.f);
+   const float effectiveDrive=clamp(drive+(0.15f+0.62f*character)*push,0,1.5f);
    // A fixed 16-sample alignment is present for ALL modes, including CLEAN
    // and color bypass. This keeps mode changes and global bypass time aligned.
    colorDelay[colorPos]={l,r};

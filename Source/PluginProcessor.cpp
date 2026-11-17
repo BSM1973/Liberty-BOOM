@@ -31,6 +31,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout BoomAudioProcessor::paramete
  addFloat(l,"push","PUSH",0,100,0,0.1f);
  addChoice(l,"color","Analog Color",{"CLEAN","TUBE","TAPE"});
  addFloat(l,"colorDrive","Analog Drive",0,1,0,0.001f);
+ addFloat(l,"colorPushCharacter","Analog PUSH Character",0,100,50,0.1f);
  addFloat(l,"colorMix","Analog Mix",0,1,0.4f,0.001f);
  addFloat(l,"colorOut","Analog Output Compensation",-12,12,0);
  addFloat(l,"deFreq","De-esser Frequency",3000,12000,6500,1);
@@ -58,6 +59,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout BoomAudioProcessor::paramete
  addBool(l,"limiterStereoLink","Limiter Stereo Link",true);
  addBool(l,"limiterAutoRelease","Limiter Auto Release",false);
  addBool(l,"outPeakGuard","Output Peak Protection",true);
+ addBool(l,"outputBypass","Output Module Bypass",false);
  addBool(l,"outputLevelComp","Output Level Compensation",false);
  addBool(l,"inputLink","Input L/R Trim Link",true);
  addBool(l,"mono","Mono Monitoring");
@@ -80,6 +82,7 @@ boom::Parameters BoomAudioProcessor::readParameters() const noexcept{
  auto load=[this](const char* id)->float{auto* a=apvts.getRawParameterValue(id);return a?a->load():0.0f;};
  p.inputDb=load("inputDb");p.inputTrimLDb=load("inputLTrim");p.inputTrimRDb=load("inputRTrim");p.eqDb={load("eq60"),load("eq120"),load("eq3k"),load("eq6k"),load("eq10k")};
  p.push=load("push");p.color=int(load("color"));p.colorDrive=load("colorDrive");p.colorMix=load("colorMix");p.colorOutputDb=load("colorOut");
+ p.colorPushCharacter=load("colorPushCharacter");p.outputBypass=load("outputBypass");
  p.deEssFreq=load("deFreq");p.deEssThreshold=load("deTh");p.deEssAmount=load("deAmt");
  p.deEssAttackMs=load("deAtt");p.deEssReleaseMs=load("deRel");
  p.compThreshold=load("compTh");p.compRatio=load("compRatio");p.compAttackMs=load("compAttack");
@@ -132,6 +135,7 @@ void BoomAudioProcessor::writeParameters(const boom::Parameters& p){
  set("eq60",p.eqDb[0]);set("eq120",p.eqDb[1]);
  set("eq3k",p.eqDb[2]);set("eq6k",p.eqDb[3]);set("eq10k",p.eqDb[4]);
  set("push",p.push);set("color",float(p.color));set("colorDrive",p.colorDrive);set("colorMix",p.colorMix);set("colorOut",p.colorOutputDb);
+ set("colorPushCharacter",p.colorPushCharacter);set("outputBypass",p.outputBypass?1.f:0.f);
  set("deFreq",p.deEssFreq);set("deTh",p.deEssThreshold);set("deAmt",p.deEssAmount);
  set("deAtt",p.deEssAttackMs);set("deRel",p.deEssReleaseMs);
  set("compTh",p.compThreshold);set("compRatio",p.compRatio);set("compAttack",p.compAttackMs);
