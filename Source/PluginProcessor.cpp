@@ -214,6 +214,17 @@ void BoomAudioProcessor::toggleFavorite(int index){
 }
 // BOOM project-portable user library. Files use the same plain XML snapshot
 // as host serialization, with a versioned BOOM_USER wrapper.
+bool BoomAudioProcessor::isStyleFavorite(int index)const{
+ if(index<0||index>=40)return false;
+ const juce::ScopedLock lock(metadataLock);
+ return styleFavorites[static_cast<std::size_t>(index)];
+}
+void BoomAudioProcessor::toggleStyleFavorite(int index){
+ if(index<0||index>=40)return;
+ const juce::ScopedLock lock(metadataLock);
+ auto& flag=styleFavorites[static_cast<std::size_t>(index)];
+ flag=!flag;
+}
 int BoomAudioProcessor::saveUserPreset(const juce::String& requestedName){
  const auto name=requestedName.trim().substring(0,80);
  if(name.isEmpty())return -1;
@@ -248,6 +259,19 @@ juce::String BoomAudioProcessor::userPresetName(int index) const{
  if(index<0||static_cast<std::size_t>(index)>=userPresets.size())return {};
  return userPresets[static_cast<std::size_t>(index)].name;
 }
+juce::String BoomAudioProcessor::userPresetTags(int index)const{
+ const juce::ScopedLock lock(metadataLock);
+ if(index<0||static_cast<std::size_t>(index)>=userPresets.size())return {};
+ return userPresets[static_cast<std::size_t>(index)].tags;
+}
+bool BoomAudioProcessor::setUserPresetTags(int index,const juce::String& requested){
+ auto cleaned=requested.trim().substring(0,180);
+ // Only a short metadata field, never executable content.
+ const juce::ScopedLock lock(metadataLock);
+ if(index<0||static_cast<std::size_t>(index)>=userPresets.size())return false;
+ userPresets[static_cast<std::size_t>(index)].tags=cleaned;
+ return true;
+}
 bool BoomAudioProcessor::loadUserPreset(int index){
  juce::ValueTree snapshot;
  {
@@ -268,6 +292,7 @@ bool BoomAudioProcessor::exportUserPreset(int index,const juce::File& destinatio
   if(index<0||static_cast<std::size_t>(index)>=userPresets.size())return false;
   const auto& item=userPresets[static_cast<std::size_t>(index)];
   pack.setProperty("name",item.name,nullptr);
+  pack.setProperty("tags",item.tags,nullptr);
   pack.setProperty("version",1,nullptr);
   pack.addChild(item.snapshot.createCopy(),-1,nullptr);
  }
@@ -285,7 +310,7 @@ bool BoomAudioProcessor::importUserPreset(const juce::File& source){
  if(name.isEmpty()||!snapshot.isValid()||!snapshot.getChildWithProperty("id","inputDb").isValid())return false;
  const juce::ScopedLock lock(metadataLock);
  if(userPresets.size()>=512)return false;
- userPresets.push_back({name,snapshot.createCopy()});
+ userPresets.push_back({name,snapshot.createCopy(),pack.getProperty("tags").toString().substring(0,180)});
  return true;
 }
 
@@ -294,10 +319,11 @@ void BoomAudioProcessor::getStateInformation(juce::MemoryBlock& target){
  stateCopy.setProperty("selectedPreset",selectedPreset.load(),nullptr);
  stateCopy.setProperty("selectedStyle",selectedStyle.load(),nullptr);
  juce::ValueTree comparisons("BOOM_AB_SLOTS");
- juce::String favoritesString;
+ juce::String favoritesString,styleFavoritesString;
  {
   const juce::ScopedLock lock(metadataLock);
   for(int i=0;i<100;++i)favoritesString+=favorites[static_cast<std::size_t>(i)]?'1':'0';
+  for(int i=0;i<40;++i)styleFavoritesString+=styleFavorites[static_cast<std::size_t>(i)]?'1':'0';
   for(int i=0;i<2;++i){
    if(comparisonSlots[static_cast<std::size_t>(i)].isValid()){
     auto snapshot=comparisonSlots[static_cast<std::size_t>(i)].createCopy();
@@ -307,6 +333,7 @@ void BoomAudioProcessor::getStateInformation(juce::MemoryBlock& target){
   }
  }
  stateCopy.setProperty("favorites",favoritesString,nullptr);
+ stateCopy.setProperty("styleFavorites",styleFavoritesString,nullptr);
  stateCopy.addChild(comparisons,-1,nullptr);
  juce::ValueTree userLibrary("BOOM_USER_LIBRARY");
  {
@@ -314,6 +341,7 @@ void BoomAudioProcessor::getStateInformation(juce::MemoryBlock& target){
   for(const auto& preset:userPresets){
    juce::ValueTree entry("BOOM_USER");
    entry.setProperty("name",preset.name,nullptr);
+   entry.setProperty("tags",preset.tags,nullptr);
    entry.setProperty("version",1,nullptr);
    entry.addChild(preset.snapshot.createCopy(),-1,nullptr);
    userLibrary.addChild(entry,-1,nullptr);
@@ -329,11 +357,13 @@ void BoomAudioProcessor::setStateInformation(const void* data,int bytes){
    selectedPreset.store(int(tree.getProperty("selectedPreset",-1)));
    selectedStyle.store(int(tree.getProperty("selectedStyle",-1)));
    const juce::String favoritesString=tree.getProperty("favorites",juce::String()).toString();
+   const juce::String styleFavoriteString=tree.getProperty("styleFavorites",juce::String()).toString();
    const auto comparisons=tree.getChildWithName("BOOM_AB_SLOTS");
    const auto userLibrary=tree.getChildWithName("BOOM_USER_LIBRARY");
    {
     const juce::ScopedLock lock(metadataLock);
     for(int i=0;i<100;++i)favorites[static_cast<std::size_t>(i)]=favoritesString.length()>i&&favoritesString[i]=='1';
+    for(int i=0;i<40;++i)styleFavorites[static_cast<std::size_t>(i)]=styleFavoriteString.length()>i&&styleFavoriteString[i]=='1';
     comparisonSlots={};
     userPresets.clear();
     if(userLibrary.isValid())for(int i=0;i<userLibrary.getNumChildren() && userPresets.size()<512;++i){
@@ -341,7 +371,8 @@ void BoomAudioProcessor::setStateInformation(const void* data,int bytes){
      const auto snapshot=entry.getChildWithName("BOOM_STATE");
      const auto name=entry.getProperty("name").toString().trim().substring(0,80);
      if(entry.hasType("BOOM_USER")&&snapshot.isValid()&&!name.isEmpty())
-      userPresets.push_back({name,snapshot.createCopy()});
+      userPresets.push_back({name,snapshot.createCopy(),
+                             entry.getProperty("tags").toString().substring(0,180)});
     }
     for(int i=0;i<comparisons.getNumChildren();++i){
      auto child=comparisons.getChild(i);

@@ -78,7 +78,7 @@ void BoomAudioProcessorEditor::paint(juce::Graphics& g){
   float(getWidth())/artWidth(),float(getHeight())/artHeight()));
  paintSkin(g);
  if(page==Page::chain)paintChain(g);
- if(page==Page::browser)paintBrowser(g);
+ // The native BrowserComponent paints and handles its own panel.
  if(page==Page::meters||page==Page::settings||page==Page::help)paintOther(g);
  paintKnobs(g);
  paintMeter(g);

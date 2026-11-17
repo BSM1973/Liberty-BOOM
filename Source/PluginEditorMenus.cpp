@@ -1,4 +1,5 @@
 #include "PluginEditor.h"
+#include "BoomBrowser.h"
 #include <algorithm>
 
 namespace {
@@ -87,37 +88,19 @@ void BoomAudioProcessorEditor::selectCategory(int index){
  category=index;firstVisible=0;refreshResults();
 }
 void BoomAudioProcessorEditor::openStyleMenu(){
- juce::PopupMenu menu;
- for(int group=0;group<4;++group){
-  juce::PopupMenu sub;
-  for(int k=0;k<10;++k){
-   const int index=group*10+k;
-   sub.addItem(index+1,juce::String(boom::styles()[static_cast<std::size_t>(index)].name),
-               true,processor.styleIndex()==index);
-  }
-  menu.addSubMenu(juce::String(group*10+1)+"–"+juce::String(group*10+10),sub);
+ if(nativeBrowser!=nullptr){
+  nativeBrowser->setMode(boom::browser::Mode::Styles);
+  showPage(Page::browser);
  }
- juce::Component::SafePointer<BoomAudioProcessorEditor> self(this);
- menu.showMenuAsync(popupOptions(this),[self](int index){
-  if(self!=nullptr&&index>0)self->loadStyle(index-1);
- });
 }
+
 void BoomAudioProcessorEditor::openPresetMenu(){
- juce::PopupMenu menu;
- for(int categoryIndex=0;categoryIndex<10;++categoryIndex){
-  juce::PopupMenu sub;
-  for(int j=0;j<10;++j){
-   const int index=categoryIndex*10+j;
-   sub.addItem(index+1,juce::String(boom::makePreset(index).name),true,
-               processor.presetIndex()==index);
-  }
-  menu.addSubMenu(juce::String(boom::categories[static_cast<std::size_t>(categoryIndex)]),sub);
+ if(nativeBrowser!=nullptr){
+  nativeBrowser->setMode(boom::browser::Mode::Presets);
+  showPage(Page::browser);
  }
- juce::Component::SafePointer<BoomAudioProcessorEditor> self(this);
- menu.showMenuAsync(popupOptions(this),[self](int choice){
-  if(self!=nullptr&&choice>0)self->loadPreset(choice-1);
- });
 }
+
 void BoomAudioProcessorEditor::openStyleFilter(){
  juce::PopupMenu menu;
  menu.addItem(1,english?"All Styles":"Tous les Styles",true,styleFilter<0);

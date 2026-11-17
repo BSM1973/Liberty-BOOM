@@ -35,6 +35,8 @@ public:
  void copyComparisonState(int sourceSlot,int destinationSlot);
  bool isFavorite(int index) const;
  void toggleFavorite(int index);
+ bool isStyleFavorite(int index) const;
+ void toggleStyleFavorite(int index);
  // UI-thread user library. Each preset contains a full parameter snapshot.
  int saveUserPreset(const juce::String& name);
  bool renameUserPreset(int index,const juce::String& name);
@@ -42,6 +44,8 @@ public:
  bool loadUserPreset(int index);
  int userPresetCount() const;
  juce::String userPresetName(int index) const;
+ juce::String userPresetTags(int index) const;
+ bool setUserPresetTags(int index,const juce::String& tags);
  bool exportUserPreset(int index,const juce::File& destination) const;
  bool importUserPreset(const juce::File& source);
 
@@ -60,7 +64,8 @@ private:
  mutable juce::CriticalSection metadataLock;
  std::array<juce::ValueTree,2> comparisonSlots;
  std::array<bool,100> favorites{};
- struct UserPreset {juce::String name;juce::ValueTree snapshot;};
+ std::array<bool,40> styleFavorites{};
+ struct UserPreset {juce::String name;juce::ValueTree snapshot;juce::String tags;};
  std::vector<UserPreset> userPresets;
  void applySnapshot(const juce::ValueTree& snapshot);
 

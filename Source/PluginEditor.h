@@ -5,6 +5,7 @@
 #include <array>
 #include <memory>
 #include <vector>
+class BoomBrowser;
 
 // One authoritative, interactive hardware surface. The reference artwork is
 // the skin; transparent hit regions invoke real APVTS parameters or actions.
@@ -27,6 +28,7 @@ private:
  struct Row {bool isUser=false;int index=-1;};
  struct Numeric {juce::String parameter;float scale=1.f;};
  BoomAudioProcessor& processor;
+ std::unique_ptr<BoomBrowser> nativeBrowser;
  juce::Image chainSkin,browserSkin;
  std::array<juce::Image,7> chainFaces,browserFaces;
  Page page=Page::chain;

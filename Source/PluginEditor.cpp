@@ -1,4 +1,5 @@
 #include "PluginEditor.h"
+#include "BoomBrowser.h"
 #include <BinaryData.h>
 #include <algorithm>
 #include <cmath>
@@ -74,6 +75,10 @@ BoomAudioProcessorEditor::BoomAudioProcessorEditor(BoomAudioProcessor& p)
  numericEdit.onEscapeKey=[this]{cancelNumeric();};
  numericEdit.onFocusLost=[this]{if(editing.parameter.isNotEmpty())commitNumeric();};
  numericEdit.setVisible(false);
+ // A true JUCE browser replaces the static photo's upper panel.
+ nativeBrowser=std::make_unique<BoomBrowser>(processor,[this]{showPage(Page::chain);});
+ addAndMakeVisible(*nativeBrowser);
+ nativeBrowser->setVisible(false);
  setWantsKeyboardFocus(true);
  setResizable(false,false);  // Keep the full console visible, without scrollbars.
  refreshResults();
@@ -103,18 +108,24 @@ juce::Rectangle<int> BoomAudioProcessorEditor::canvasRect(float x,float y,float 
          juce::roundToInt(h*getHeight()/artHeight())};
 }
 void BoomAudioProcessorEditor::resized(){
- search.setBounds(canvasRect(380,140,464,27));
- userPresetName.setBounds(canvasRect(938,398,192,25));
- const bool browser=page==Page::browser;
- search.setVisible(browser);
- userPresetName.setVisible(browser);
+ // Legacy photograph text fields are hidden: the native browser owns them now.
+ search.setVisible(false);
+ userPresetName.setVisible(false);
+ if(nativeBrowser!=nullptr){
+  nativeBrowser->setBounds(canvasRect(18.f,95.f,1557.f,344.f));
+  nativeBrowser->setVisible(page==Page::browser);
+  if(page==Page::browser)nativeBrowser->toFront(false);
+ }
  if(editing.parameter.isNotEmpty())numericEdit.setVisible(false);
 }
 void BoomAudioProcessorEditor::showPage(Page target){
  endGesture();cancelNumeric();
  if(target==page)return;
  page=target;
- if(page==Page::browser)refreshResults();
+ if(page==Page::browser && nativeBrowser!=nullptr){
+  nativeBrowser->updateLanguage(english);
+  nativeBrowser->refresh();
+ }
  const auto fittedSize=boomFittedWindowSize(artWidth(),artHeight());
  setSize(fittedSize.x,fittedSize.y);
  resized();repaint();
