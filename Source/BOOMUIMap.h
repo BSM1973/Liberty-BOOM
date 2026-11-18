@@ -74,9 +74,9 @@ inline constexpr Zone chain[]={
  {1450,350,59,33,Kind::action,"copyBtoA"},
  {1516,350,84,33,Kind::toggle,"outputLevelComp"},
  // Console navigation and actual motor controls.
- {464,437,252,36,Kind::toggle,"meterInput"},
- {786,437,118,36,Kind::toggle,"bypass"},
- {979,437,220,36,Kind::toggle,"mono"},
+ {458,428,242,41,Kind::toggle,"meterInput"},
+ {773,429,116,40,Kind::toggle,"bypass"},
+ {958,429,230,40,Kind::toggle,"mono"},
  {129,522,219,219,Kind::knob,"inputDb"},
  {439,681,124,124,Kind::knob,"eq60"},
  {602,681,122,124,Kind::knob,"eq120"},
@@ -84,8 +84,8 @@ inline constexpr Zone chain[]={
  {920,681,122,124,Kind::knob,"eq6k"},
  {1080,681,122,124,Kind::knob,"eq10k"},
  {1323,522,217,219,Kind::knob,"push"},
- {151,841,96,31,Kind::toggle,"inputLink"},
- {260,841,81,31,Kind::action,"trimMenu"}
+ {147,831,97,29,Kind::toggle,"inputLink"},
+ {256,831,78,29,Kind::action,"trimMenu"}
 };
 inline constexpr Zone browser[]={
  {32,28,354,42,Kind::menu,"styleMenu"},
@@ -130,9 +130,9 @@ inline constexpr Zone browser[]={
  {1392,442,60,31,Kind::action,"copyBtoA"},
  {1459,442,76,31,Kind::toggle,"outputLevelComp"},
  // Equalizer and active analog controls on the photographed console.
- {454,523,235,33,Kind::toggle,"meterInput"},
- {759,523,108,33,Kind::toggle,"bypass"},
- {935,523,203,33,Kind::toggle,"mono"},
+ {441,507,244,40,Kind::toggle,"meterInput"},
+ {741,507,112,40,Kind::toggle,"bypass"},
+ {906,507,220,40,Kind::toggle,"mono"},
  {120,575,196,198,Kind::knob,"inputDb"},
  {444,731,104,104,Kind::knob,"eq60"},
  {583,731,104,104,Kind::knob,"eq120"},
@@ -140,8 +140,8 @@ inline constexpr Zone browser[]={
  {860,731,104,104,Kind::knob,"eq6k"},
  {999,731,104,104,Kind::knob,"eq10k"},
  {1230,575,203,198,Kind::knob,"push"},
- {126,891,95,30,Kind::toggle,"inputLink"},
- {231,891,83,30,Kind::action,"trimMenu"}
+ {123,861,102,32,Kind::toggle,"inputLink"},
+ {228,861,77,32,Kind::action,"trimMenu"}
 };
 template<std::size_t N> constexpr bool uniqueRects(const Zone (&zones)[N]) {
  for(std::size_t i=0;i<N;++i)

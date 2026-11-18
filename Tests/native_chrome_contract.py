@@ -111,3 +111,14 @@ assert 'juce::Justification::centred:juce::Justification::centredRight' in paint
 settings=(root/"Source/PluginEditorPanels.cpp").read_text(encoding="utf-8")
 assert 'g.drawText(s.title,s.x,s.y,215,19,juce::Justification::centred)' in settings
 assert 'modes[chosen],false,true' in settings
+
+# BOOM screenshot 2026-11-18: old JPEG meter needles and EQ figures
+# cannot remain visible behind the live controls.
+assert "void BoomAudioProcessorEditor::paintCleanMeterFaces(" in paint
+assert "paintCleanMeterFaces(g);" in paint
+assert "const float width=large?178.f:144.f;" in paint
+assert "skin.getPixelAt(" in paint
+assert "g.fillRoundedRectangle(area,4.f);" in paint
+assert "g.drawRoundedRectangle(area.reduced(.5f),6.f,.8f)" not in paint
+assert '{458,428,242,41,Kind::toggle,"meterInput"}' in (
+    root/"Source/BOOMUIMap.h").read_text(encoding="utf-8")

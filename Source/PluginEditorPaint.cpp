@@ -84,6 +84,7 @@ void BoomAudioProcessorEditor::paint(juce::Graphics& g){
  // The native BrowserComponent paints and handles its own panel.
  if(page==Page::meters||page==Page::settings||page==Page::help)paintOther(g);
  paintKnobs(g);
+ paintCleanMeterFaces(g);
  paintMeter(g);
  // Header and toolbar text are native JUCE components, never JPG overlays.
 }
@@ -130,15 +131,18 @@ void BoomAudioProcessorEditor::paintLowerButtons(juce::Graphics& g){
  const bool browser=page==Page::browser;
  const auto surround=browser?juce::Colour::fromRGB(25,19,22):
                              juce::Colour::fromRGB(31,12,17);
- const auto row=browser?juce::Rectangle<float>(443.f,515.f,709.f,46.f):
-                       juce::Rectangle<float>(450.f,429.f,759.f,50.f);
- const auto lowerRow=browser?juce::Rectangle<float>(120.f,886.f,202.f,40.f):
-                            juce::Rectangle<float>(144.f,835.f,202.f,43.f);
+ const auto row=browser?juce::Rectangle<float>(432.f,498.f,712.f,51.f):
+                       juce::Rectangle<float>(448.f,420.f,751.f,53.f);
+ const auto lowerRow=browser?juce::Rectangle<float>(115.f,853.f,199.f,47.f):
+                            juce::Rectangle<float>(140.f,824.f,204.f,44.f);
+ // No extraneous framed background: replace the old photographed controls
+ // and their bevels before drawing ONE row of interactive controls.
  for(const auto area:{row,lowerRow}){
-  g.setColour(surround);
-  g.fillRoundedRectangle(area,6.f);
-  g.setColour(copper.withAlpha(.28f));
-  g.drawRoundedRectangle(area.reduced(.5f),6.f,.8f);
+  const auto top=surround.brighter(.12f);
+  juce::ColourGradient opaque(top,area.getTopLeft(),
+                             surround.darker(.10f),area.getBottomLeft(),false);
+  g.setGradientFill(opaque);
+  g.fillRoundedRectangle(area,4.f);
  }
  const auto* zones=browser?boom::ui::browser:boom::ui::chain;
  const auto count=browser?std::size(boom::ui::browser):
@@ -232,28 +236,107 @@ void BoomAudioProcessorEditor::paintKnobs(juce::Graphics& g){
   }
  }
 
- // Dynamic gain figures replace the original static readings inside the skin.
+ // Completely replace the original still-image number and its shadows,
+ // including trailing dB fragments. Reconstruct the local photographic
+ // background from clean pixels at both sides of each strip, rather than
+ // putting a conspicuous rectangular black sticker over the console.
+ const auto& skin=b?browserSkin:chainSkin;
  for(int i=0;i<7;++i){
   const bool large=i==0||i==6;
-  const float width=large?134.f:86.f;
-  const float xx=xs[i]-width*.5f;
-  const float yy=large?(b?802.f:757.f):(b?833.f:802.f);
-  const float height=large?29.f:23.f;
+  const float width=large?178.f:144.f;
+  const int x=juce::roundToInt(xs[i]-width*.5f);
+  const int y=juce::roundToInt(large?(b?795.f:750.f):(b?826.f:795.f));
+  const int height=large?39:35;
+  if(skin.isValid()){
+   for(int line=0;line<height;++line){
+    const int py=juce::jlimit(0,skin.getHeight()-1,y+line);
+    const auto left=skin.getPixelAt(juce::jlimit(0,skin.getWidth()-1,x-8),py);
+    const auto right=skin.getPixelAt(
+      juce::jlimit(0,skin.getWidth()-1,x+int(width)+8),py);
+    g.setGradientFill(juce::ColourGradient(left,float(x),float(py),
+                                          right,float(x+width),float(py),false));
+    g.fillRect(float(x),float(py),width,1.f);
+   }
+  }else{
+   g.setColour(juce::Colour::fromRGB(35,14,19));
+   g.fillRect(x,y,int(width),height);
+  }
   const auto text=juce::String(read(keys[i]),1)+(i==6?" %":" dB");
-  // Only the original *number*, not any knob or caption, is replaced.
-  g.setColour(juce::Colour::fromRGB(28,11,15));
-  g.fillRect(xx,yy,width,height);
   g.setColour(ivory);
   g.setFont(font(large?20.f:15.f));
-  g.drawText(text,juce::roundToInt(xx),juce::roundToInt(yy),
-             juce::roundToInt(width),juce::roundToInt(height),
-             juce::Justification::centred);
+  g.drawText(text,x,y+4,int(width),height-7,juce::Justification::centred);
  }
 }
+void BoomAudioProcessorEditor::paintCleanMeterFaces(juce::Graphics& g){
+ // The original photograph has fixed needles, numbers and old erasure
+ // smears baked into the glass. Draw a clean, matching analog scale INSIDE
+ // the original brass frames. Only the interior is replaced, never the bezel.
+ const bool b=page==Page::browser;
+ const float radius=b?112.f:123.f;
+ const float labelRadius=radius+13.f;
+ const float basesX[]={b?597.f:620.f,b?961.f:1037.f};
+ const float baseY=b?699.f:632.f;
+ const int top=b?570:498;
+ const int panelHeight=b?116:125;
+ const int panelWidth=b?286:312;
+ const auto faceTop=juce::Colour::fromRGB(251,233,189);
+ const auto faceBottom=juce::Colour::fromRGB(210,170,115);
+ const int dbMarks[]={-20,-10,-7,-5,-3,-2,-1,0,1,2,3};
+ const float angles[]={-1.06f,-.83f,-.57f,-.35f,-.15f,
+                        .02f,.19f,.37f,.61f,.82f,1.04f};
+ for(int channel=0;channel<2;++channel){
+  const float cx=basesX[channel],cy=baseY;
+  const auto face=juce::Rectangle<float>(cx-panelWidth*.5f,float(top),
+                                         float(panelWidth),float(panelHeight));
+  juce::ColourGradient glass(faceTop,face.getTopLeft(),
+                             faceBottom,face.getBottomLeft(),false);
+  g.setGradientFill(glass);
+  g.fillRoundedRectangle(face,9.f);
+  g.setColour(juce::Colour::fromRGB(91,50,29).withAlpha(.80f));
+  g.drawRoundedRectangle(face.reduced(1.f),8.f,1.5f);
+  g.setColour(juce::Colour::fromRGB(92,51,39).withAlpha(.18f));
+  g.drawRoundedRectangle(face.reduced(4.f),7.f,1.f);
+  for(int j=0;j<11;++j){
+   const auto angle=angles[j];
+   const auto endpoint=[&](float r){
+    return juce::Point<float>(cx+std::sin(angle)*r,
+                              cy-std::cos(angle)*r);
+   };
+   const auto a=endpoint(radius-((j==0||j==7||j==10)?14.f:9.f));
+   const auto z=endpoint(radius);
+   const bool positive=dbMarks[j]>0;
+   g.setColour(positive?juce::Colour::fromRGB(150,34,36):
+                        juce::Colour::fromRGB(59,42,34));
+   g.drawLine(a.x,a.y,z.x,z.y,(j==0||j==7)?2.f:1.3f);
+   const auto text=juce::String(dbMarks[j]>0?"+":"")+juce::String(dbMarks[j]);
+   const auto t=endpoint(labelRadius);
+   g.setFont(font(b?9.f:10.f,true));
+   g.drawText(text,juce::roundToInt(t.x-19.f),juce::roundToInt(t.y-8.f),
+              38,16,juce::Justification::centred);
+  }
+  g.setColour(juce::Colour::fromRGB(57,41,33));
+  g.setFont(font(b?28.f:31.f,true));
+  g.drawText("VU",juce::roundToInt(cx-51.f),juce::roundToInt(cy-85.f),
+             102,43,juce::Justification::centred);
+  g.setColour(juce::Colour::fromRGB(108,72,48));
+  g.setFont(font(b?7.2f:8.f,true));
+  g.drawFittedText("LIBERTY MUSIC SOFTWARE",
+    juce::roundToInt(cx-105.f),juce::roundToInt(cy-45.f),210,14,
+    juce::Justification::centred,1);
+  g.setColour(juce::Colour::fromRGB(89,66,49));
+  g.setFont(font(9.f,true));
+  g.drawText(channel==0?(english?"LEFT":"GAUCHE"):(english?"RIGHT":"DROITE"),
+    juce::roundToInt(face.getX()+13.f),juce::roundToInt(face.getBottom()-24.f),
+    80,16,juce::Justification::centredLeft);
+  g.drawText("300 ms",juce::roundToInt(face.getRight()-73.f),
+    juce::roundToInt(face.getBottom()-24.f),61,16,juce::Justification::centredRight);
+ }
+}
+
 void BoomAudioProcessorEditor::paintMeter(juce::Graphics& g){
  const bool b=page==Page::browser;
  const float basesX[]={b?597.f:620.f,b?961.f:1037.f};
- const float baseY=b?699.f:632.f,length=b?133.f:140.f;
+ const float baseY=b?699.f:632.f,length=b?109.f:119.f;
  const float levels[]={vuL,vuR};
  for(int c=0;c<2;++c){
   const float angle=juce::jmap(juce::jlimit(-20.f,3.f,levels[c]),

@@ -64,6 +64,7 @@ private:
  void paintSkin(juce::Graphics&);
  void paintKnobs(juce::Graphics&);
  void paintMeter(juce::Graphics&);
+ void paintCleanMeterFaces(juce::Graphics&);
  void paintLowerButtons(juce::Graphics&);
  void refreshChrome();
  void paintChain(juce::Graphics&);
