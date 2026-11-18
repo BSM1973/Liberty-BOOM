@@ -105,7 +105,7 @@ assert 'const char* ids[]={"pageChain","pageMeters","pageSettings","pageHelp",' 
 assert 'const auto& z=zones[j]' in chrome
 assert 'toolbarButtons[i].setBounds(' in chrome
 assert 'paintLowerButtons(g);' in core.replace(" ", "") or 'paintLowerButtons(g);' in paint
-assert 'g.fillRoundedRectangle(area,6.f);' in paint
+assert 'g.fillRoundedRectangle(area,4.f);' in paint
 assert 'void BoomAudioProcessorEditor::paintLowerButtons(' in paint
 assert 'juce::Justification::centred:juce::Justification::centredRight' in paint
 settings=(root/"Source/PluginEditorPanels.cpp").read_text(encoding="utf-8")
