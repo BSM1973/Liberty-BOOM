@@ -122,3 +122,29 @@ assert "g.fillRoundedRectangle(area,4.f);" in paint
 assert "g.drawRoundedRectangle(area.reduced(.5f),6.f,.8f)" not in paint
 assert '{458,428,242,41,Kind::toggle,"meterInput"}' in (
     root/"Source/BOOMUIMap.h").read_text(encoding="utf-8")
+
+# Screenshot regression (18 Nov 2026): the first EQ face was near the
+# photograph's centre, but the fifth drifted 26 original-artwork pixels
+# left. Correct the five actual centres AND their interactive hit zones.
+eq_paint=(root/"Source/PluginEditorPaint.cpp").read_text(encoding="utf-8")
+eq_map=(root/"Source/BOOMUIMap.h").read_text(encoding="utf-8")
+assert 'chainCX[]={236,505,669,834,1000,1167,1425}' in eq_paint
+assert 'chainRadius[]={78,59,59,59,59,59,79}' in eq_paint
+assert 'browserRadius[]={71,53,53,53,53,53,73}' in eq_paint
+assert 'const float maskRadius=radius+5.f;' in eq_paint
+assert 'g.fillEllipse(mask);' in eq_paint
+assert 'const bool eq=i>=1&&i<=5;' in eq_paint
+assert 'capture(chainSkin,chainFaces' not in eq_paint
+assert 'capture(browserSkin,browserFaces' not in eq_paint
+assert 'chainFaces,browserFaces' not in head
+from re import findall
+all_knobs=findall(r'\{(\d+),(\d+),(\d+),(\d+),Kind::knob,"(eq60|eq120|eq3k|eq6k|eq10k)"\}',eq_map)
+assert len(all_knobs)==10, "Five EQ hit zones on each console artwork"
+for zone in all_knobs[:5]:
+    pass
+chain_zones=all_knobs[:5]
+expected=(505,669,834,1000,1167)
+for zone,centre in zip(chain_zones,expected):
+    x,y,w,h,identifier=zone
+    assert abs((int(x)+int(w)/2)-centre)<=1.5,(identifier,centre,zone)
+    assert int(y)>=680 and int(h)>=120

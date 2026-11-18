@@ -13,27 +13,22 @@ const auto dark=boom::ui::theme::background();
 juce::Font font(float size,bool bold=false){
  return boom::ui::theme::font(size,bold);
 }
-constexpr float chainCX[]={236,503,663,822,981,1141,1425};
+// Coordinates measured against the original 1672-pixel console artwork.
+// Old EQ centres drifted progressively left, by up to 26 px at 10 kHz.
+constexpr float chainCX[]={236,505,669,834,1000,1167,1425};
 constexpr float chainCY[]={629,744,744,744,744,744,629};
 constexpr float browserCX[]={218,497,633,775,914,1052,1331};
 constexpr float browserCY[]={676,778,778,778,778,778,676};
-constexpr float chainRadius[]={78,39,39,39,39,39,79};
-constexpr float browserRadius[]={71,35,35,35,35,35,73};
+// Native EQ bezel covers the ENTIRE photographic knob, including the
+// specular ring, while leaving the exterior engraved tick labels in place.
+constexpr float chainRadius[]={78,59,59,59,59,59,79};
+constexpr float browserRadius[]={71,53,53,53,53,53,73};
 const char* keys[]={"inputDb","eq60","eq120","eq3k","eq6k","eq10k","push"};
 }
 
 void BoomAudioProcessorEditor::prepareFaces(){
- auto capture=[&](const juce::Image& src,std::array<juce::Image,7>& faces,
-                  const float* xs,const float* ys,const float* radii){
-  if(!src.isValid())return;
-  for(int i=0;i<7;++i){
-   const int r=juce::roundToInt(radii[i]);
-   faces[static_cast<std::size_t>(i)]=src.getClippedImage(
-     {juce::roundToInt(xs[i])-r,juce::roundToInt(ys[i])-r,2*r,2*r});
-  }
- };
- capture(chainSkin,chainFaces,chainCX,chainCY,chainRadius);
- capture(browserSkin,browserFaces,browserCX,browserCY,browserRadius);
+ // EQ control faces are NEVER sampled from reference artwork. Each is
+ // constructed entirely from vector graphics in paintKnobs().
  // Remove the photographed idle needles once, from the in-memory art only.
  // Needle animations therefore do not draw over the old frozen needles.
  if(chainSkin.isValid()){
@@ -200,31 +195,54 @@ void BoomAudioProcessorEditor::paintKnobs(juce::Graphics& g){
                            parameter->convertTo0to1(read(keys[i])));
   const float angle=-2.35f+normalized*4.70f;
   const float cx=xs[i],cy=(b?browserCY:chainCY)[i];
+  const bool eq=i>=1&&i<=5;
   const float radius=radii[i]-.5f;
   const juce::Rectangle<float> disk(cx-radius,cy-radius,2*radius,2*radius);
-  // Fixed bezel and native circular dial: rotating a photographic crop also
-  // rotates the engraved scale, duplicating needles and breaking the image.
-  // Only the illuminated position marker moves.
-  juce::ColourGradient brass(juce::Colour::fromRGB(85,42,38),
+  if(eq){
+   // Wipe the FULL photographed EQ control, including the old outer copper
+   // bezel and white reflection. The old 39 px overlay left a second knob
+   // visible; this 5 px opaque margin outside the NEW bezel prevents it.
+   // Leave only the engraved exterior scale in the source photograph.
+   const float maskRadius=radius+5.f;
+   const juce::Rectangle<float> mask(cx-maskRadius,cy-maskRadius,
+                                    2.f*maskRadius,2.f*maskRadius);
+   const auto bgMid=b?juce::Colour::fromRGB(42,19,23):
+                       juce::Colour::fromRGB(51,20,23);
+   const auto bgEdge=b?juce::Colour::fromRGB(30,15,18):
+                        juce::Colour::fromRGB(33,13,16);
+   g.setGradientFill(juce::ColourGradient(
+    bgMid,cx,cy,bgEdge,cx+maskRadius,cy,true));
+   g.fillEllipse(mask);
+  }
+  // One complete metal bezel, inner face and moving pointer, all vector.
+  // The original photograph is not reused for any part of an EQ knob.
+  juce::ColourGradient brass(juce::Colour::fromRGB(107,57,44),
                              disk.getTopLeft(),
-                             juce::Colour::fromRGB(23,19,18),
-                             disk.getBottomRight(),false);
+                             juce::Colour::fromRGB(26,18,20),
+                             disk.getBottomLeft(),false);
   g.setGradientFill(brass);g.fillEllipse(disk);
-  g.setColour(juce::Colour::fromRGB(194,119,83).withAlpha(.85f));
-  g.drawEllipse(disk.reduced(.75f),1.5f);
-  const auto inner=disk.reduced(radius*.13f);
+  g.setColour(juce::Colour::fromRGB(182,109,76).withAlpha(.91f));
+  g.drawEllipse(disk.reduced(.8f),eq?2.2f:1.5f);
+  if(eq){
+   g.setColour(juce::Colour::fromRGB(32,21,23));
+   g.drawEllipse(disk.reduced(5.f),3.f);
+   g.setColour(gold.withAlpha(.56f));
+   g.drawEllipse(disk.reduced(8.f),1.3f);
+  }
+  const auto inner=disk.reduced(radius*(eq?.24f:.13f));
   juce::ColourGradient core(juce::Colour::fromRGB(65,28,33),
                             inner.getTopLeft(),
                             juce::Colour::fromRGB(12,17,15),
                             inner.getBottomRight(),false);
   g.setGradientFill(core);g.fillEllipse(inner);
-  g.setColour(juce::Colour::fromRGB(138,93,70).withAlpha(.63f));
+  g.setColour(juce::Colour::fromRGB(138,93,70).withAlpha(.70f));
   g.drawEllipse(inner.reduced(.5f),1.f);
   const auto aPoint=[&](float length){
    return juce::Point<float>(cx+std::sin(angle)*length,
                               cy-std::cos(angle)*length);
   };
-  const auto start=aPoint(radius*.39f),tip=aPoint(radius*.82f);
+  const auto start=aPoint(radius*(eq?.31f:.39f));
+  const auto tip=aPoint(radius*(eq?.68f:.82f));
   g.setColour(juce::Colour::fromRGB(19,11,11).withAlpha(.68f));
   g.drawLine(start.x+1.3f,start.y+1.3f,tip.x+1.3f,tip.y+1.3f,4.f);
   g.setColour(ivory);

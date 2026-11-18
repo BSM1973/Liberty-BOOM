@@ -40,7 +40,6 @@ private:
  int selectedRecall=-1;
  int hoveredKnob=-1,focusedKnob=-1;
  juce::Image chainSkin,browserSkin;
- std::array<juce::Image,7> chainFaces,browserFaces;
  Page page=Page::chain;
  juce::TextEditor search,userPresetName,numericEdit;
  std::unique_ptr<juce::FileChooser> fileChooser;
