@@ -1,6 +1,8 @@
 #include "BoomChrome.h"
 #include "BoomUiTheme.h"
 #include "BoomSafeText.h"
+#include "BOOMUIMap.h"
+#include <iterator>
 #include <algorithm>
 #include <cmath>
 
@@ -152,6 +154,11 @@ void BoomChrome::updateButtons(){
  toolbarButtons[5].setToggleState(selectedRecall==1,juce::dontSendNotification);
  toolbarButtons[10].setToggleState(levelEnabled,juce::dontSendNotification);
 }
+void BoomChrome::setToolbarArtworkWidth(int sourceWidth){
+ if(area!=Area::Toolbar || sourceWidth==toolbarArtworkWidth)return;
+ toolbarArtworkWidth=sourceWidth;
+ resized();
+}
 void BoomChrome::resized(){
  const int w=getWidth(),h=getHeight();
  if(area==Area::Header){
@@ -178,26 +185,30 @@ void BoomChrome::resized(){
                              langTotal-langSingle-langGap,bh);
   return;
  }
- // Fixed design proportions are scaled uniformly for 13-inch screens.
- const float r=std::min(1.f,float(w)/1230.f);
- const int margin=juce::roundToInt(13.f*r),gap=juce::jmax(3,juce::roundToInt(6.f*r));
- const int bw[]={91,97,109,73,38,38,73,73,58,58,88};
- int x=margin;
- const int buttonY=juce::jmax(2,juce::roundToInt(h*.16f));
- const int buttonH=juce::jlimit(21,38,juce::roundToInt(h*.67f));
- for(int i=0;i<4;++i){
-  const int width=juce::roundToInt(bw[i]*r);
-  toolbarButtons[static_cast<size_t>(i)].setBounds(x,buttonY,width,buttonH);
-  x+=width+gap;
- }
- int compareWidth=0;
- for(int i=4;i<11;++i)compareWidth+=juce::roundToInt(bw[i]*r)+gap;
- const int rightX=w-margin-compareWidth;
- x=rightX;
- for(int i=4;i<11;++i){
-  const int width=juce::roundToInt(bw[i]*r);
-  toolbarButtons[static_cast<size_t>(i)].setBounds(x,buttonY,width,buttonH);
-  x+=width+gap;
+ // Use the SAME exact rectangles as the interaction map / original artwork
+ // on both console (1672) and browser (1592), including 13-inch scaling.
+ const bool browser=toolbarArtworkWidth==1592;
+ const auto* zones=browser?boom::ui::browser:boom::ui::chain;
+ const auto count=browser?std::size(boom::ui::browser):
+                          std::size(boom::ui::chain);
+ const char* ids[]={"pageChain","pageMeters","pageSettings","pageHelp",
+                    "recallA","recallB","storeA","storeB",
+                    "copyAtoB","copyBtoA","outputLevelComp"};
+ const float sourceTop=browser?435.f:343.f;
+ const float sourceHeight=browser?46.f:53.f;
+ const float sx=float(w)/float(toolbarArtworkWidth);
+ const float sy=float(h)/sourceHeight;
+ for(std::size_t i=0;i<toolbarButtons.size();++i){
+  for(std::size_t j=0;j<count;++j){
+   const auto& z=zones[j];
+   if(juce::String(z.id)!=ids[i] || z.y<sourceTop ||
+      z.y>=sourceTop+sourceHeight)continue;
+   toolbarButtons[i].setBounds(
+    juce::roundToInt(z.x*sx),juce::roundToInt((z.y-sourceTop)*sy),
+    juce::jmax(1,juce::roundToInt(z.w*sx)),
+    juce::jmax(1,juce::roundToInt(z.h*sy)));
+   break;
+  }
  }
 }
 void BoomChrome::paint(juce::Graphics& g){

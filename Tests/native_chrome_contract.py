@@ -97,3 +97,17 @@ for w in (960,1100,1280,1592,1672):
 
 print("BOOM chrome contract PASS: 17 native controls, real JPEG exclusions, "
       "centred Style/Preset, ASCII-source UTF-8 Unicode, nonoverlapping layouts")
+
+# Source artwork button alignment: native toolbar and lower panel must use
+# the exact same click rectangles, never guessed left-justified widths.
+assert 'setToolbarArtworkWidth(artWidth())' in core
+assert 'const char* ids[]={"pageChain","pageMeters","pageSettings","pageHelp",' in chrome
+assert 'const auto& z=zones[j]' in chrome
+assert 'toolbarButtons[i].setBounds(' in chrome
+assert 'paintLowerButtons(g);' in core.replace(" ", "") or 'paintLowerButtons(g);' in paint
+assert 'g.fillRoundedRectangle(area,6.f);' in paint
+assert 'void BoomAudioProcessorEditor::paintLowerButtons(' in paint
+assert 'juce::Justification::centred:juce::Justification::centredRight' in paint
+settings=(root/"Source/PluginEditorPanels.cpp").read_text(encoding="utf-8")
+assert 'g.drawText(s.title,s.x,s.y,215,19,juce::Justification::centred)' in settings
+assert 'modes[chosen],false,true' in settings

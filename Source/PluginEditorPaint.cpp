@@ -78,6 +78,8 @@ void BoomAudioProcessorEditor::paint(juce::Graphics& g){
  g.addTransform(juce::AffineTransform::scale(
   float(getWidth())/artWidth(),float(getHeight())/artHeight()));
  paintSkin(g);
+ // Opaque, aligned controls completely replace the photographic lower buttons.
+ paintLowerButtons(g);
  // Native JUCE chain tab view paints over the legacy rack with no duplicate numbers.
  // The native BrowserComponent paints and handles its own panel.
  if(page==Page::meters||page==Page::settings||page==Page::help)paintOther(g);
@@ -109,7 +111,8 @@ void BoomAudioProcessorEditor::paintSkin(juce::Graphics& g){
  }
 }
 void BoomAudioProcessorEditor::paintReading(
- juce::Graphics& g,juce::Rectangle<float> r,juce::String value,bool emphasis){
+ juce::Graphics& g,juce::Rectangle<float> r,juce::String value,
+ bool emphasis,bool centered){
  // Replace only the INSIDE of the value window photographed in the source.
  // The original metal frame, controls and engraved labels stay untouched.
  const auto inner=r.reduced(3.f,3.f);
@@ -117,7 +120,69 @@ void BoomAudioProcessorEditor::paintReading(
  g.setColour(emphasis?ivory:gold);
  g.setFont(font(r.getHeight()>25.f?19.f:12.f,emphasis));
  g.drawFittedText(value,inner.toNearestInt().reduced(1,0),
-                  juce::Justification::centredRight,1);
+                  centered?juce::Justification::centred:juce::Justification::centredRight,1);
+}
+
+void BoomAudioProcessorEditor::paintLowerButtons(juce::Graphics& g){
+ // The former photographic controls remain on the JPEG. First mask the
+ // COMPLETE rows, including bevels and shadows, then paint exactly one live
+ // button per existing BOOMUIMap interaction zone. No image duplication.
+ const bool browser=page==Page::browser;
+ const auto surround=browser?juce::Colour::fromRGB(25,19,22):
+                             juce::Colour::fromRGB(31,12,17);
+ const auto row=browser?juce::Rectangle<float>(443.f,515.f,709.f,46.f):
+                       juce::Rectangle<float>(450.f,429.f,759.f,50.f);
+ const auto lowerRow=browser?juce::Rectangle<float>(120.f,886.f,202.f,40.f):
+                            juce::Rectangle<float>(144.f,835.f,202.f,43.f);
+ for(const auto area:{row,lowerRow}){
+  g.setColour(surround);
+  g.fillRoundedRectangle(area,6.f);
+  g.setColour(copper.withAlpha(.28f));
+  g.drawRoundedRectangle(area.reduced(.5f),6.f,.8f);
+ }
+ const auto* zones=browser?boom::ui::browser:boom::ui::chain;
+ const auto count=browser?std::size(boom::ui::browser):
+                          std::size(boom::ui::chain);
+ const char* ids[]={"meterInput","bypass","mono","inputLink","trimMenu"};
+ for(const auto* id:ids){
+  for(std::size_t i=0;i<count;++i){
+   const auto& z=zones[i];
+   if(juce::String(z.id)!=id || z.y<(browser?500.f:410.f))continue;
+   const juce::Rectangle<float> r(z.x,z.y,z.w,z.h);
+   bool selected=false;
+   juce::String label;
+   if(juce::String(id)=="meterInput"){
+    selected=read("meterInput")>.5f;
+    label=english?(selected?"VU / INPUT":"VU / OUTPUT"):
+                  (selected?"VU / ENTREE":"VU / SORTIE");
+   }else if(juce::String(id)=="bypass"){
+    selected=read("bypass")>.5f;label="BYPASS";
+   }else if(juce::String(id)=="mono"){
+    selected=read("mono")>.5f;
+    label=english?"MONO / HOLD":"MONO / MAINTENIR";
+   }else if(juce::String(id)=="inputLink"){
+    selected=read("inputLink")>.5f;
+    label=english?"LINK L/R":"LIEN G/D";
+   }else{label="TRIMS";}
+   const auto shape=r.reduced(.5f);
+   juce::ColourGradient fill(
+    selected?juce::Colour::fromRGB(97,29,38):juce::Colour::fromRGB(62,26,31),
+    shape.getTopLeft(),dark,shape.getBottomLeft(),false);
+   g.setGradientFill(fill);
+   g.fillRoundedRectangle(shape,5.f);
+   g.setColour(selected?gold:copper.withAlpha(.82f));
+   g.drawRoundedRectangle(shape,5.f,selected?1.5f:1.1f);
+   if(selected){
+    g.setColour(gold.withAlpha(.9f));
+    g.fillEllipse(r.getX()+8.f,r.getCentreY()-2.5f,5.f,5.f);
+   }
+   g.setColour(ivory);
+   g.setFont(font(r.getHeight()>=34.f?12.5f:11.5f,selected));
+   g.drawFittedText(label,r.toNearestInt().reduced(10,2),
+                    juce::Justification::centred,1);
+   break;
+  }
+ }
 }
 
 void BoomAudioProcessorEditor::paintKnobs(juce::Graphics& g){

@@ -168,7 +168,7 @@ void BoomAudioProcessorEditor::paintOther(juce::Graphics& g){
  g.drawText(meters?(english?"PRECISION METERS":"MESURES DE PRECISION"):
   settings?(english?"MASTERING SETTINGS":"REGLAGES DE MASTERING"):
            (english?"BOOM CONSOLE GUIDE":"GUIDE DE LA CONSOLE BOOM"),
-  72,116,1100,32,juce::Justification::centredLeft);
+  72,116,1500,32,juce::Justification::centred);
  g.setColour(copper.withAlpha(.55f));g.drawHorizontalLine(151,72.f,1566.f);
  if(meters){
   const auto m=processor.lastMeters();
@@ -214,20 +214,20 @@ void BoomAudioProcessorEditor::paintOther(juce::Graphics& g){
   };
   for(const auto& s:settingsFields){
    g.setColour(gold);g.setFont(font(12.5f,true));
-   g.drawText(s.title,s.x,s.y,304,19,juce::Justification::centredLeft);
+   g.drawText(s.title,s.x,s.y,215,19,juce::Justification::centred);
    paintReading(g,{float(s.x),float(s.y+22),215.f,29.f},
-                juce::String(read(s.parameter)*s.scale,1)+s.unit);
+                juce::String(read(s.parameter)*s.scale,1)+s.unit,false,true);
   }
   const char* modes[]={"TRANSPARENT","PUNCH","LOUD"};
   const int chosen=juce::jlimit(0,2,int(read("limitMode")+.5f));
   g.setColour(gold);g.setFont(font(12.5f,true));
-  g.drawText(english?"LIMITER MODE":"MODE LIMITEUR",443,260,310,19,
-             juce::Justification::centredLeft);
-  paintReading(g,{443,282,215,29},modes[chosen]);
-  g.setColour(gold);g.drawText(english?"LINK TRIMS L/R":"LIEN TRIMS G/D",793,260,310,19,
-                              juce::Justification::centredLeft);
+  g.drawText(english?"LIMITER MODE":"MODE LIMITEUR",443,260,215,19,
+             juce::Justification::centred);
+  paintReading(g,{443,282,215,29},modes[chosen],false,true);
+  g.setColour(gold);g.drawText(english?"LINK TRIMS L/R":"LIEN TRIMS G/D",793,260,215,19,
+                              juce::Justification::centred);
   paintReading(g,{793,282,215,29},read("inputLink")>.5f?
-        (english?"LINKED":"LIES"):(english?"UNLINKED":"DELIES"));
+        (english?"LINKED":"LIES"):(english?"UNLINKED":"DELIES"),false,true);
  }else{
   g.setColour(ivory);g.setFont(font(16.f));
   const juce::String help=english?

@@ -64,11 +64,13 @@ private:
  void paintSkin(juce::Graphics&);
  void paintKnobs(juce::Graphics&);
  void paintMeter(juce::Graphics&);
+ void paintLowerButtons(juce::Graphics&);
  void refreshChrome();
  void paintChain(juce::Graphics&);
  void paintBrowser(juce::Graphics&);
  void paintOther(juce::Graphics&);
- void paintReading(juce::Graphics&,juce::Rectangle<float>,juce::String,bool emphasis=false);
+ void paintReading(juce::Graphics&,juce::Rectangle<float>,juce::String,
+                   bool emphasis=false,bool centered=false);
  void paintSwitch(juce::Graphics&,const boom::ui::Zone&);
  void refreshResults();
  void changeSelected(int);

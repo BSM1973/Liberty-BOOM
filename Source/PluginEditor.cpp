@@ -179,6 +179,7 @@ void BoomAudioProcessorEditor::resized(){
   nativeHeader->toFront(false);
  }
  if(nativeToolbar!=nullptr){
+  nativeToolbar->setToolbarArtworkWidth(artWidth());
   const float top=page==Page::browser?435.f:343.f;
   const float bottom=page==Page::browser?481.f:396.f;
   nativeToolbar->setBounds(canvasRect(0.f,top,float(artWidth()),bottom-top));
@@ -411,6 +412,8 @@ void BoomAudioProcessorEditor::numericFor(
  const char* id,float scale,juce::Rectangle<float> area){
  endGesture();cancelNumeric();
  editing={juce::String(id),scale};
+ numericEdit.setJustification(page==Page::settings?
+    juce::Justification::centred:juce::Justification::centredRight);
  numericEdit.setBounds(canvasRect(area.getX(),area.getY(),area.getWidth(),area.getHeight()));
  const auto digits=editing.parameter=="deFreq"?2:1;
  numericEdit.setText(juce::String(read(id)*scale,digits),false);

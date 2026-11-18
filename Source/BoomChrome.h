@@ -20,6 +20,7 @@ public:
  void resized() override;
  void setNames(const juce::String& style,const juce::String& preset);
  void setState(bool english,int activePage,bool levelComp,int selectedRecall);
+ void setToolbarArtworkWidth(int sourceWidth);
 private:
  class BrassLook final:public juce::LookAndFeel_V4 {
  public:
@@ -35,6 +36,7 @@ private:
  juce::String styleName,presetName;
  bool english=false,levelEnabled=false;
  int activePage=0,selectedRecall=-1;
+ int toolbarArtworkWidth=1672;
  void wireButton(juce::TextButton&,Command,juce::String);
  void updateButtons();
  JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(BoomChrome)
