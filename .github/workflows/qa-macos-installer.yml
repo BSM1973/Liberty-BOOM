@@ -1,0 +1,88 @@
+name: BOOM macOS universal QA installer - unsigned
+on:
+  workflow_dispatch:
+  push:
+    branches: [release/boom-notarization-one-click]
+    paths:
+      - '.github/workflows/qa-macos-installer.yml'
+permissions:
+  contents: read
+  actions: read
+jobs:
+  macos-qa-installer:
+    name: Build and verify unsigned macOS AU VST3 Standalone test PKG
+    runs-on: macos-15-intel
+    timeout-minutes: 110
+    steps:
+      - uses: actions/checkout@v4
+      - name: Read actual BOOM version
+        id: version
+        shell: bash
+        run: |
+          set -euo pipefail
+          number="$(sed -n 's/.*project(BOOM VERSION \([0-9.]*\).*/\1/p' CMakeLists.txt | head -1)"
+          test -n "$number"
+          echo "number=$number" >> "$GITHUB_OUTPUT"
+      - name: Build macOS Universal AU VST3 Standalone and test
+        shell: bash
+        run: |
+          set -euo pipefail
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON '-DCMAKE_OSX_ARCHITECTURES=arm64;x86_64'
+          cmake --build build --config Release --parallel 3
+          ctest --test-dir build -C Release --output-on-failure
+      - name: Construct and test QA-only unsigned installer
+        shell: bash
+        run: |
+          set -euo pipefail
+          au="build/BOOM_artefacts/Release/AU/BOOM.component"
+          vst="build/BOOM_artefacts/Release/VST3/BOOM.vst3"
+          app="build/BOOM_artefacts/Release/Standalone/BOOM.app"
+          stage="$RUNNER_TEMP/boom-qa-root"
+          mkdir -p "$stage/Library/Audio/Plug-Ins/Components" "$stage/Library/Audio/Plug-Ins/VST3" "$stage/Applications/Liberty Music Software" release-output
+          for bundle in "$au" "$vst" "$app"; do
+            test -f "$bundle/Contents/MacOS/BOOM"
+            arches="$(lipo -archs "$bundle/Contents/MacOS/BOOM")"
+            [[ " $arches " == *" arm64 "* && " $arches " == *" x86_64 "* ]]
+          done
+          ditto "$au" "$stage/Library/Audio/Plug-Ins/Components/BOOM.component"
+          ditto "$vst" "$stage/Library/Audio/Plug-Ins/VST3/BOOM.vst3"
+          ditto "$app" "$stage/Applications/Liberty Music Software/BOOM.app"
+          pkg="release-output/BOOM-v${{ steps.version.outputs.number }}-macOS-Universal-TEST-UNSIGNED.pkg"
+          pkgbuild --root "$stage" --identifier "com.libertymusicsoftware.boom.qa" --version "${{ steps.version.outputs.number }}" --install-location / "$pkg"
+          pkgutil --payload-files "$pkg" > release-output/payload.txt
+          for file in "Library/Audio/Plug-Ins/Components/BOOM.component/Contents/MacOS/BOOM" "Library/Audio/Plug-Ins/VST3/BOOM.vst3/Contents/MacOS/BOOM" "Applications/Liberty Music Software/BOOM.app/Contents/MacOS/BOOM"; do
+            grep -Fq "$file" release-output/payload.txt
+          done
+          sudo installer -pkg "$pkg" -target /
+          test -f "/Library/Audio/Plug-Ins/Components/BOOM.component/Contents/MacOS/BOOM"
+          test -f "/Library/Audio/Plug-Ins/VST3/BOOM.vst3/Contents/MacOS/BOOM"
+          test -f "/Applications/Liberty Music Software/BOOM.app/Contents/MacOS/BOOM"
+          shasum -a 256 "$pkg"
+      - name: Upload unsigned QA-only installer
+        id: uploaded
+        uses: actions/upload-artifact@v4
+        with:
+          name: BOOM-v${{ steps.version.outputs.number }}-macOS-Universal-PKG-TEST-UNSIGNED
+          path: release-output/BOOM-v${{ steps.version.outputs.number }}-macOS-Universal-TEST-UNSIGNED.pkg
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 30
+      - name: Re-download exact uploaded QA installer
+        uses: actions/download-artifact@v4
+        with:
+          artifact-ids: ${{ steps.uploaded.outputs.artifact-id }}
+          path: qa-verified
+          merge-multiple: true
+      - name: Validate downloaded QA installer
+        shell: bash
+        run: |
+          set -euo pipefail
+          pkg="qa-verified/BOOM-v${{ steps.version.outputs.number }}-macOS-Universal-TEST-UNSIGNED.pkg"
+          test -s "$pkg"
+          pkgutil --payload-files "$pkg" | grep -Fq 'BOOM.vst3/Contents/MacOS/BOOM'
+          echo "::warning::BOOM QA package is UNSIGNED and NOT Apple notarized. Never deliver as commercial installer."
+      - name: Download information
+        if: success()
+        run: |
+          echo "## BOOM macOS QA-only package" >> "$GITHUB_STEP_SUMMARY"
+          echo "This is an UNSIGNED package for local testing, not an Apple-notarized commercial installer." >> "$GITHUB_STEP_SUMMARY"
