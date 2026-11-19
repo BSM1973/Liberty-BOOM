@@ -19,10 +19,10 @@ constexpr float chainCX[]={236,505,669,834,1000,1167,1425};
 constexpr float chainCY[]={629,744,744,744,744,744,629};
 constexpr float browserCX[]={218,497,633,775,914,1052,1331};
 constexpr float browserCY[]={676,778,778,778,778,778,676};
-// Native EQ bezel covers the ENTIRE photographic knob, including the
-// specular ring, while leaving the exterior engraved tick labels in place.
-constexpr float chainRadius[]={78,59,59,59,59,59,79};
-constexpr float browserRadius[]={71,53,53,53,53,53,73};
+// The new knobs are completely vector-drawn. Artwork radii describe the
+// live metal bezel, NOT the radius used to erase old photographic controls.
+constexpr float chainRadius[]={99,51,51,51,51,51,99};
+constexpr float browserRadius[]={87,47,47,47,47,47,87};
 const char* keys[]={"inputDb","eq60","eq120","eq3k","eq6k","eq10k","push"};
 }
 
@@ -120,25 +120,12 @@ void BoomAudioProcessorEditor::paintReading(
 }
 
 void BoomAudioProcessorEditor::paintLowerButtons(juce::Graphics& g){
- // The former photographic controls remain on the JPEG. First mask the
- // COMPLETE rows, including bevels and shadows, then paint exactly one live
- // button per existing BOOMUIMap interaction zone. No image duplication.
+ // Do not paint a large shared rectangle under the first row: it concealed
+ // "THE POWER BEHIND YOUR MASTER". Mask each photographed switch separately,
+ // including its shadow, then draw one replacement at the same hit location.
  const bool browser=page==Page::browser;
- const auto surround=browser?juce::Colour::fromRGB(25,19,22):
-                             juce::Colour::fromRGB(31,12,17);
- const auto row=browser?juce::Rectangle<float>(432.f,498.f,712.f,51.f):
-                       juce::Rectangle<float>(448.f,420.f,751.f,53.f);
- const auto lowerRow=browser?juce::Rectangle<float>(115.f,853.f,199.f,47.f):
-                            juce::Rectangle<float>(140.f,824.f,204.f,44.f);
- // No extraneous framed background: replace the old photographed controls
- // and their bevels before drawing ONE row of interactive controls.
- for(const auto area:{row,lowerRow}){
-  const auto top=surround.brighter(.12f);
-  juce::ColourGradient opaque(top,area.getTopLeft(),
-                             surround.darker(.10f),area.getBottomLeft(),false);
-  g.setGradientFill(opaque);
-  g.fillRoundedRectangle(area,4.f);
- }
+ const auto back=browser?juce::Colour::fromRGB(30,17,21):
+                         juce::Colour::fromRGB(34,17,20);
  const auto* zones=browser?boom::ui::browser:boom::ui::chain;
  const auto count=browser?std::size(boom::ui::browser):
                           std::size(boom::ui::chain);
@@ -148,6 +135,10 @@ void BoomAudioProcessorEditor::paintLowerButtons(juce::Graphics& g){
    const auto& z=zones[i];
    if(juce::String(z.id)!=id || z.y<(browser?500.f:410.f))continue;
    const juce::Rectangle<float> r(z.x,z.y,z.w,z.h);
+   // A small local mask follows the original control (no secondary
+   // background panel, no extra rectangular border or doubled bevel).
+   const auto clean=r.expanded(4.f,4.f);
+   g.setColour(back);g.fillRoundedRectangle(clean,5.f);
    bool selected=false;
    juce::String label;
    if(juce::String(id)=="meterInput"){
@@ -167,8 +158,7 @@ void BoomAudioProcessorEditor::paintLowerButtons(juce::Graphics& g){
    juce::ColourGradient fill(
     selected?juce::Colour::fromRGB(97,29,38):juce::Colour::fromRGB(62,26,31),
     shape.getTopLeft(),dark,shape.getBottomLeft(),false);
-   g.setGradientFill(fill);
-   g.fillRoundedRectangle(shape,5.f);
+   g.setGradientFill(fill);g.fillRoundedRectangle(shape,5.f);
    g.setColour(selected?gold:copper.withAlpha(.82f));
    g.drawRoundedRectangle(shape,5.f,selected?1.5f:1.1f);
    if(selected){
@@ -196,53 +186,78 @@ void BoomAudioProcessorEditor::paintKnobs(juce::Graphics& g){
   const float angle=-2.35f+normalized*4.70f;
   const float cx=xs[i],cy=(b?browserCY:chainCY)[i];
   const bool eq=i>=1&&i<=5;
-  const float radius=radii[i]-.5f;
-  const juce::Rectangle<float> disk(cx-radius,cy-radius,2*radius,2*radius);
-  if(eq){
-   // Wipe the FULL photographed EQ control, including the old outer copper
-   // bezel and white reflection. The old 39 px overlay left a second knob
-   // visible; this 5 px opaque margin outside the NEW bezel prevents it.
-   // Leave only the engraved exterior scale in the source photograph.
-   const float maskRadius=radius+5.f;
-   const juce::Rectangle<float> mask(cx-maskRadius,cy-maskRadius,
-                                    2.f*maskRadius,2.f*maskRadius);
-   const auto bgMid=b?juce::Colour::fromRGB(42,19,23):
-                       juce::Colour::fromRGB(51,20,23);
-   const auto bgEdge=b?juce::Colour::fromRGB(30,15,18):
-                        juce::Colour::fromRGB(33,13,16);
-   g.setGradientFill(juce::ColourGradient(
-    bgMid,cx,cy,bgEdge,cx+maskRadius,cy,true));
-   g.fillEllipse(mask);
+  const bool large=!eq;
+  const float radius=radii[i];
+  const float eraseRadius=eq?(b?68.f:79.f):(b?120.f:132.f);
+  const juce::Rectangle<float> mask(cx-eraseRadius,cy-eraseRadius,
+                                   2.f*eraseRadius,2.f*eraseRadius);
+  // OPAQUE, FULL-SIZE ERASURE: both small EQ knobs and the original large
+  // PUSH/INPUT DRIVE metal rings disappear before the new graphic is drawn.
+  // Limiting the mask to a circle also preserves the fixed console captions.
+  const auto bgCentre=b?juce::Colour::fromRGB(46,22,26):
+                        juce::Colour::fromRGB(52,20,25);
+  const auto bgOutside=b?juce::Colour::fromRGB(32,16,19):
+                         juce::Colour::fromRGB(43,17,21);
+  juce::ColourGradient clean(bgCentre,cx,cy,
+                              bgOutside,cx+eraseRadius,cy,true);
+  g.setGradientFill(clean);g.fillEllipse(mask);
+
+  // Recreate the fixed engraved scale entirely inside the cleaned circle,
+  // including the zero marker. No old photographed ticks or highlights remain.
+  const int tickCount=11;
+  const float tickStart=radius+(eq?8.f:10.f);
+  const float tickEnd=radius+(eq?16.f:20.f);
+  for(int k=0;k<tickCount;++k){
+   const float a=-2.35f+4.70f*float(k)/float(tickCount-1);
+   const float cs=std::sin(a),sn=std::cos(a);
+   g.setColour(k==5?ivory:gold.withAlpha(k%5==0?.9f:.46f));
+   const float from=tickStart;
+   const float to=tickEnd+(k%5==0?3.f:0.f);
+   g.drawLine(cx+cs*from,cy-sn*from,cx+cs*to,cy-sn*to,
+              k==5?2.4f:1.2f);
   }
-  // One complete metal bezel, inner face and moving pointer, all vector.
-  // The original photograph is not reused for any part of an EQ knob.
-  juce::ColourGradient brass(juce::Colour::fromRGB(107,57,44),
-                             disk.getTopLeft(),
-                             juce::Colour::fromRGB(26,18,20),
+  g.setColour(ivory);g.setFont(font(eq?(b?9.f:10.f):12.f,true));
+  for(int k:{0,5,10}){
+   const float a=-2.35f+4.70f*float(k)/10.f;
+   const float textRadius=radius+(eq?25.f:29.f);
+   const auto p=juce::Point<float>(cx+std::sin(a)*textRadius,
+                                  cy-std::cos(a)*textRadius);
+   juce::String label;
+   if(eq){
+    const bool edge=(i==1||i==5);
+    const int maximum=edge?8:10;
+    label=k==5?"0":juce::String(k==0?-maximum:maximum);
+    if(k==10)label="+"+label;
+   }else if(i==0)label=k==5?"0":(k==0?"-18":"+18");
+   else label=k==5?"50":(k==0?"0":"100");
+   g.drawFittedText(label,juce::roundToInt(p.x-21.f),
+                    juce::roundToInt(p.y-8.f),42,16,
+                    juce::Justification::centred,1);
+  }
+  const juce::Rectangle<float> disk(cx-radius,cy-radius,2.f*radius,2.f*radius);
+  juce::ColourGradient brass(juce::Colour::fromRGB(110,61,48),
+                             disk.getTopLeft(),juce::Colour::fromRGB(29,19,22),
                              disk.getBottomLeft(),false);
   g.setGradientFill(brass);g.fillEllipse(disk);
-  g.setColour(juce::Colour::fromRGB(182,109,76).withAlpha(.91f));
-  g.drawEllipse(disk.reduced(.8f),eq?2.2f:1.5f);
-  if(eq){
-   g.setColour(juce::Colour::fromRGB(32,21,23));
-   g.drawEllipse(disk.reduced(5.f),3.f);
-   g.setColour(gold.withAlpha(.56f));
-   g.drawEllipse(disk.reduced(8.f),1.3f);
-  }
-  const auto inner=disk.reduced(radius*(eq?.24f:.13f));
-  juce::ColourGradient core(juce::Colour::fromRGB(65,28,33),
-                            inner.getTopLeft(),
-                            juce::Colour::fromRGB(12,17,15),
+  g.setColour(juce::Colour::fromRGB(201,133,94));
+  g.drawEllipse(disk.reduced(.8f),large?3.f:2.3f);
+  g.setColour(juce::Colour::fromRGB(31,19,21));
+  g.drawEllipse(disk.reduced(6.f),large?3.8f:2.8f);
+  g.setColour(gold.withAlpha(.56f));
+  g.drawEllipse(disk.reduced(9.f),1.3f);
+  const auto inner=disk.reduced(radius*.25f);
+  juce::ColourGradient core(juce::Colour::fromRGB(68,31,36),
+                            inner.getTopLeft(),juce::Colour::fromRGB(15,13,16),
                             inner.getBottomRight(),false);
   g.setGradientFill(core);g.fillEllipse(inner);
-  g.setColour(juce::Colour::fromRGB(138,93,70).withAlpha(.70f));
+  g.setColour(juce::Colour::fromRGB(139,87,69).withAlpha(.72f));
   g.drawEllipse(inner.reduced(.5f),1.f);
   const auto aPoint=[&](float length){
    return juce::Point<float>(cx+std::sin(angle)*length,
                               cy-std::cos(angle)*length);
   };
-  const auto start=aPoint(radius*(eq?.31f:.39f));
-  const auto tip=aPoint(radius*(eq?.68f:.82f));
+  const auto start=aPoint(radius*.30f);
+  const auto tip=aPoint(radius*.72f);
   g.setColour(juce::Colour::fromRGB(19,11,11).withAlpha(.68f));
   g.drawLine(start.x+1.3f,start.y+1.3f,tip.x+1.3f,tip.y+1.3f,4.f);
   g.setColour(ivory);

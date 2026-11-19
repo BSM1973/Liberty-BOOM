@@ -105,7 +105,7 @@ assert 'const char* ids[]={"pageChain","pageMeters","pageSettings","pageHelp",' 
 assert 'const auto& z=zones[j]' in chrome
 assert 'toolbarButtons[i].setBounds(' in chrome
 assert 'paintLowerButtons(g);' in core.replace(" ", "") or 'paintLowerButtons(g);' in paint
-assert 'g.fillRoundedRectangle(area,4.f);' in paint
+assert 'g.fillRoundedRectangle(clean,5.f);' in paint
 assert 'void BoomAudioProcessorEditor::paintLowerButtons(' in paint
 assert 'juce::Justification::centred:juce::Justification::centredRight' in paint
 settings=(root/"Source/PluginEditorPanels.cpp").read_text(encoding="utf-8")
@@ -118,7 +118,7 @@ assert "void BoomAudioProcessorEditor::paintCleanMeterFaces(" in paint
 assert "paintCleanMeterFaces(g);" in paint
 assert "const float width=large?178.f:144.f;" in paint
 assert "skin.getPixelAt(" in paint
-assert "g.fillRoundedRectangle(area,4.f);" in paint
+assert "g.fillRoundedRectangle(clean,5.f);" in paint
 assert "g.drawRoundedRectangle(area.reduced(.5f),6.f,.8f)" not in paint
 assert '{458,428,242,41,Kind::toggle,"meterInput"}' in (
     root/"Source/BOOMUIMap.h").read_text(encoding="utf-8")
@@ -129,9 +129,9 @@ assert '{458,428,242,41,Kind::toggle,"meterInput"}' in (
 eq_paint=(root/"Source/PluginEditorPaint.cpp").read_text(encoding="utf-8")
 eq_map=(root/"Source/BOOMUIMap.h").read_text(encoding="utf-8")
 assert 'chainCX[]={236,505,669,834,1000,1167,1425}' in eq_paint
-assert 'chainRadius[]={78,59,59,59,59,59,79}' in eq_paint
-assert 'browserRadius[]={71,53,53,53,53,53,73}' in eq_paint
-assert 'const float maskRadius=radius+5.f;' in eq_paint
+assert 'chainRadius[]={99,51,51,51,51,51,99}' in eq_paint
+assert 'browserRadius[]={87,47,47,47,47,47,87}' in eq_paint
+assert 'const float eraseRadius=eq?(b?68.f:79.f):(b?120.f:132.f);' in eq_paint
 assert 'g.fillEllipse(mask);' in eq_paint
 assert 'const bool eq=i>=1&&i<=5;' in eq_paint
 assert 'capture(chainSkin,chainFaces' not in eq_paint
@@ -148,3 +148,17 @@ for zone,centre in zip(chain_zones,expected):
     x,y,w,h,identifier=zone
     assert abs((int(x)+int(w)/2)-centre)<=1.5,(identifier,centre,zone)
     assert int(y)>=680 and int(h)>=120
+
+# Screenshot of 19 Nov: FOUR explicitly marked visual regressions.
+# (1) No shared background stripe through the slogan above the VU buttons.
+# (2) Full photographic EQ rims and scales erased before a single new knob.
+# (3) PUSH + INPUT DRIVE use the same full-size erasure path as EQ.
+# (4) LIEN G/D / TRIMS have no additional panel enclosing their native faces.
+assert 'const auto row=browser?' not in eq_paint
+assert 'const auto lowerRow=browser?' not in eq_paint
+assert 'const auto clean=r.expanded(4.f,4.f);' in eq_paint
+assert 'const bool large=!eq;' in eq_paint
+assert 'g.setGradientFill(clean);g.fillEllipse(mask);' in eq_paint
+assert 'const int tickCount=11;' in eq_paint
+assert 'const float eraseRadius=eq?(b?68.f:79.f):(b?120.f:132.f);' in eq_paint
+assert eq_paint.index('g.fillEllipse(mask);')<eq_paint.index('g.setGradientFill(brass);g.fillEllipse(disk);')
