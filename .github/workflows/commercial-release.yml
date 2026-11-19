@@ -1,0 +1,151 @@
+name: BOOM - Installateurs Windows et notarisation Apple
+run-name: BOOM commercial release from ${{ github.ref_name }}
+on:
+  workflow_dispatch:
+  push:
+    branches: [release/boom-notarization-one-click]
+    paths:
+      - '.github/workflows/commercial-release.yml'
+      - 'Installer/**'
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: boom-commercial-release
+  cancel-in-progress: false
+
+jobs:
+  macos-commercial:
+    if: github.ref == 'refs/heads/release/boom-notarization-one-click' && github.event_name != 'pull_request'
+    name: Universal AU/VST3/Standalone - Apple signed and notarized
+    runs-on: macos-15-intel
+    timeout-minutes: 150
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Verify the six Apple secrets before any compilation
+        env:
+          APPLE_DEVELOPER_ID_APPLICATION_P12_BASE64: ${{ secrets.APPLE_DEVELOPER_ID_APPLICATION_P12_BASE64 }}
+          APPLE_DEVELOPER_ID_INSTALLER_P12_BASE64: ${{ secrets.APPLE_DEVELOPER_ID_INSTALLER_P12_BASE64 }}
+          APPLE_P12_PASSWORD: ${{ secrets.APPLE_P12_PASSWORD }}
+          APPLE_NOTARY_APPLE_ID: ${{ secrets.APPLE_NOTARY_APPLE_ID }}
+          APPLE_NOTARY_APP_PASSWORD: ${{ secrets.APPLE_NOTARY_APP_PASSWORD }}
+          APPLE_NOTARY_TEAM_ID: ${{ secrets.APPLE_NOTARY_TEAM_ID }}
+        run: bash Installer/macos/apple_secrets_preflight.sh
+      - name: Read BOOM source version
+        id: version
+        shell: bash
+        run: |
+          set -euo pipefail
+          number="$(sed -n 's/.*project(BOOM VERSION \([0-9.]*\).*/\1/p' CMakeLists.txt | head -1)"
+          test -n "$number"
+          echo "number=$number" >> "$GITHUB_OUTPUT"
+      - name: Build universal AU/VST3/Standalone on macOS
+        shell: bash
+        run: |
+          set -euo pipefail
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON '-DCMAKE_OSX_ARCHITECTURES=arm64;x86_64'
+          cmake --build build --config Release --parallel 3
+          ctest --test-dir build -C Release --output-on-failure
+      - name: Test native Audio Unit through Apple auval
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$HOME/Library/Audio/Plug-Ins/Components" release-validation
+          /usr/bin/ditto build/BOOM_artefacts/Release/AU/BOOM.component "$HOME/Library/Audio/Plug-Ins/Components/BOOM.component"
+          killall -9 AudioComponentRegistrar >/dev/null 2>&1 || true
+          sleep 3
+          auval -a > release-validation/auval-list.txt
+          auval -v aumf Boom LibM > release-validation/auval-BOOM.txt 2>&1
+      - name: Developer ID codesign, notarize, staple, Gatekeeper and install
+        shell: bash
+        env:
+          APPLE_DEVELOPER_ID_APPLICATION_P12_BASE64: ${{ secrets.APPLE_DEVELOPER_ID_APPLICATION_P12_BASE64 }}
+          APPLE_DEVELOPER_ID_INSTALLER_P12_BASE64: ${{ secrets.APPLE_DEVELOPER_ID_INSTALLER_P12_BASE64 }}
+          APPLE_P12_PASSWORD: ${{ secrets.APPLE_P12_PASSWORD }}
+          APPLE_NOTARY_APPLE_ID: ${{ secrets.APPLE_NOTARY_APPLE_ID }}
+          APPLE_NOTARY_APP_PASSWORD: ${{ secrets.APPLE_NOTARY_APP_PASSWORD }}
+          APPLE_NOTARY_TEAM_ID: ${{ secrets.APPLE_NOTARY_TEAM_ID }}
+        run: bash Installer/macos/build_signed_notarized_pkg.sh "${{ steps.version.outputs.number }}"
+      - name: Publish ONLY Apple Accepted, stapled signed installer
+        id: published
+        uses: actions/upload-artifact@v4
+        with:
+          name: BOOM-v${{ steps.version.outputs.number }}-macOS-Universal-SIGNED-NOTARIZED-PKG
+          path: release-output/BOOM-v${{ steps.version.outputs.number }}-macOS-Universal-SIGNED-NOTARIZED.pkg
+          if-no-files-found: error
+          retention-days: 90
+          compression-level: 0
+      - name: Download exact published installer for final check
+        uses: actions/download-artifact@v4
+        with:
+          artifact-ids: ${{ steps.published.outputs.artifact-id }}
+          path: release-verified
+          merge-multiple: true
+      - name: Reverify real download
+        shell: bash
+        run: |
+          set -euo pipefail
+          pkg="release-verified/BOOM-v${{ steps.version.outputs.number }}-macOS-Universal-SIGNED-NOTARIZED.pkg"
+          test -s "$pkg"
+          /usr/sbin/pkgutil --check-signature "$pkg"
+          /usr/bin/xcrun stapler validate "$pkg"
+          /usr/sbin/spctl --assess --type install --verbose=2 "$pkg"
+          /usr/bin/shasum -a 256 "$pkg"
+      - name: Publish Apple confirmation to workflow summary
+        shell: bash
+        env:
+          VERSION: ${{ steps.version.outputs.number }}
+          ARTIFACT_ID: ${{ steps.published.outputs.artifact-id }}
+        run: |
+          echo "## BOOM v$VERSION - Signé, notarisé Apple" >> "$GITHUB_STEP_SUMMARY"
+          echo "Apple Notary Service: **Accepted**. Ticket staplé. Gatekeeper vérifié." >> "$GITHUB_STEP_SUMMARY"
+          echo "AU, VST3 et Standalone universels arm64/x86_64." >> "$GITHUB_STEP_SUMMARY"
+          echo "[Télécharger le PKG](https://github.com/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/artifacts/$ARTIFACT_ID)" >> "$GITHUB_STEP_SUMMARY"
+      - name: Publish nonsecret validation logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: BOOM-Apple-release-validation-logs
+          path: release-validation/
+          if-no-files-found: warn
+          retention-days: 90
+
+  windows-installer:
+    if: github.ref == 'refs/heads/release/boom-notarization-one-click' && github.event_name != 'pull_request'
+    name: Windows x64 VST3 professional EXE installer
+    runs-on: windows-2022
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Read BOOM version
+        id: version
+        shell: pwsh
+        run: |
+          $data = Get-Content -LiteralPath CMakeLists.txt -Raw
+          $match = [regex]::Match($data, 'project\(BOOM VERSION (\d+\.\d+\.\d+)')
+          if (-not $match.Success) { throw 'BOOM project version missing' }
+          "number=$($match.Groups[1].Value)" >> $env:GITHUB_OUTPUT
+      - name: Build release VST3, standalone and native tests
+        shell: pwsh
+        run: |
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON
+          if ($LASTEXITCODE -ne 0) { throw 'CMake configuration failed' }
+          cmake --build build --config Release --parallel 3
+          if ($LASTEXITCODE -ne 0) { throw 'Native build failed' }
+          ctest --test-dir build -C Release --output-on-failure
+          if ($LASTEXITCODE -ne 0) { throw 'Native regression tests failed' }
+      - name: Create Inno Setup Windows EXE and verify SHA256
+        shell: pwsh
+        run: ./Installer/windows/build_installer.ps1 -Version "${{ steps.version.outputs.number }}"
+      - name: Publish Windows unsigned installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: BOOM-v${{ steps.version.outputs.number }}-Windows-x64-VST3-EXE-unsigned
+          path: release-output/BOOM-v${{ steps.version.outputs.number }}-Windows-x64-VST3-Installer-unsigned.exe
+          if-no-files-found: error
+          retention-days: 90
+          compression-level: 0
