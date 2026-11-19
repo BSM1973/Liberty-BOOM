@@ -18,11 +18,11 @@ juce::Font font(float size,bool bold=false){
 constexpr float chainCX[]={236,505,669,834,1000,1167,1425};
 constexpr float chainCY[]={629,744,744,744,744,744,629};
 constexpr float browserCX[]={218,497,633,775,914,1052,1331};
-constexpr float browserCY[]={676,778,778,778,778,778,676};
+constexpr float browserCY[]={676,797,797,797,797,797,676};
 // The new knobs are completely vector-drawn. Artwork radii describe the
 // live metal bezel, NOT the radius used to erase old photographic controls.
-constexpr float chainRadius[]={99,51,51,51,51,51,99};
-constexpr float browserRadius[]={87,47,47,47,47,47,87};
+constexpr float chainRadius[]={86,46,46,46,46,46,86};
+constexpr float browserRadius[]={80,41,41,41,41,41,80};
 const char* keys[]={"inputDb","eq60","eq120","eq3k","eq6k","eq10k","push"};
 }
 
@@ -120,249 +120,293 @@ void BoomAudioProcessorEditor::paintReading(
 }
 
 void BoomAudioProcessorEditor::paintLowerButtons(juce::Graphics& g){
- // Do not paint a large shared rectangle under the first row: it concealed
- // "THE POWER BEHIND YOUR MASTER". Mask each photographed switch separately,
- // including its shadow, then draw one replacement at the same hit location.
- const bool browser=page==Page::browser;
- const auto back=browser?juce::Colour::fromRGB(30,17,21):
-                         juce::Colour::fromRGB(34,17,20);
- const auto* zones=browser?boom::ui::browser:boom::ui::chain;
- const auto count=browser?std::size(boom::ui::browser):
-                          std::size(boom::ui::chain);
+ // One native surface replaces the ENTIRE lower photographed console.
+ // The reference JPEG is still present outside this panel, but NO old
+ // knobs, labels, values, switches, rings or shadows can bleed through.
+ const bool b=page==Page::browser;
+ const float w=float(artWidth());
+ const float top=b?485.f:400.f;
+ const float bottom=b?931.f:872.f;
+ const juce::Rectangle<float> face(40.f,top,w-80.f,bottom-top);
+ juce::ColourGradient panel(juce::Colour::fromRGB(63,25,29),
+                            face.getTopLeft(),juce::Colour::fromRGB(28,12,17),
+                            face.getBottomLeft(),false);
+ g.setGradientFill(panel);g.fillRoundedRectangle(face,5.f);
+ g.setColour(copper.withAlpha(.45f));
+ g.drawRoundedRectangle(face.reduced(.6f),5.f,1.1f);
+ // Faint texture rails are decorative; they never hide captions or controls.
+ g.setColour(gold.withAlpha(.09f));
+ g.drawHorizontalLine(juce::roundToInt(top+5.f),face.getX()+10.f,face.getRight()-10.f);
+ g.drawHorizontalLine(juce::roundToInt(bottom-4.f),face.getX()+10.f,face.getRight()-10.f);
+ auto label=[&](const juce::String& value,float x,float y,float width,
+                float height,float size,bool bold,juce::Colour ink){
+  g.setColour(ink);g.setFont(font(size,bold));
+  g.drawFittedText(value,juce::Rectangle<int>(
+   juce::roundToInt(x),juce::roundToInt(y),
+   juce::roundToInt(width),juce::roundToInt(height)),
+   juce::Justification::centred,1);
+ };
+ label("LIBERTY / STEREO MASTERING ENGINE",58.f,top+11.f,
+       b?344.f:390.f,18.f,11.5f,true,gold);
+ label("THE POWER BEHIND YOUR MASTER.",w*.34f,
+       b?top:top+6.f,w*.32f,19.f,14.f,true,ivory);
+ label("MODEL B-01",w-208.f,top+11.f,158.f,18.f,11.5f,true,gold);
+ label(english?"ANALOG INPUT STAGE":"ETAGE D'ENTREE ANALOGIQUE",
+       110.f,b?543.f:456.f,254.f,18.f,13.f,true,gold);
+ label(english?"MASTERING INTENSITY":"INTENSITE DE MASTERING",
+       w-364.f,b?543.f:456.f,254.f,18.f,13.f,true,gold);
+ const float eqTitle=b?708.f:648.f;
+ const float eqCentre=(b?775.f:835.f);
+ label(english?"MUSICAL MASTERING EQ - 5 BANDS":
+               "EGALISEUR MUSICAL DE MASTERING - 5 BANDES",
+       eqCentre-310.f,eqTitle,620.f,18.f,14.f,true,gold);
+ g.setColour(copper.withAlpha(.48f));
+ g.drawLine(eqCentre-409.f,eqTitle+11.f,eqCentre-319.f,eqTitle+11.f,1.f);
+ g.drawLine(eqCentre+319.f,eqTitle+11.f,eqCentre+409.f,eqTitle+11.f,1.f);
+
+ // Repaint the actual controls at their unique mapped click rectangles;
+ // no shared opaque button-row stripe can cross the slogan.
+ const auto* zones=b?boom::ui::browser:boom::ui::chain;
+ const auto count=b?std::size(boom::ui::browser):
+                    std::size(boom::ui::chain);
  const char* ids[]={"meterInput","bypass","mono","inputLink","trimMenu"};
  for(const auto* id:ids){
-  for(std::size_t i=0;i<count;++i){
-   const auto& z=zones[i];
-   if(juce::String(z.id)!=id || z.y<(browser?500.f:410.f))continue;
-   const juce::Rectangle<float> r(z.x,z.y,z.w,z.h);
-   // A small local mask follows the original control (no secondary
-   // background panel, no extra rectangular border or doubled bevel).
-   const auto clean=r.expanded(4.f,4.f);
-   g.setColour(back);g.fillRoundedRectangle(clean,5.f);
+  for(std::size_t n=0;n<count;++n){
+   const auto& z=zones[n];
+   if(juce::String(z.id)!=id||z.y<(b?500.f:410.f))continue;
+   const juce::Rectangle<float> rect(z.x,z.y,z.w,z.h);
    bool selected=false;
-   juce::String label;
+   juce::String title;
    if(juce::String(id)=="meterInput"){
     selected=read("meterInput")>.5f;
-    label=english?(selected?"VU / INPUT":"VU / OUTPUT"):
-                  (selected?"VU / ENTREE":"VU / SORTIE");
+    title=english?(selected?"VU / INPUT":"VU / OUTPUT"):
+                   (selected?"VU / ENTREE":"VU / SORTIE");
    }else if(juce::String(id)=="bypass"){
-    selected=read("bypass")>.5f;label="BYPASS";
+    selected=read("bypass")>.5f;title="BYPASS";
    }else if(juce::String(id)=="mono"){
     selected=read("mono")>.5f;
-    label=english?"MONO / HOLD":"MONO / MAINTENIR";
+    title=english?"MONO / HOLD":"MONO / MAINTENIR";
    }else if(juce::String(id)=="inputLink"){
     selected=read("inputLink")>.5f;
-    label=english?"LINK L/R":"LIEN G/D";
-   }else{label="TRIMS";}
-   const auto shape=r.reduced(.5f);
+    title=english?"LINK L/R":"LIEN G/D";
+   }else title="TRIMS";
+   const auto button=rect.reduced(.8f);
    juce::ColourGradient fill(
-    selected?juce::Colour::fromRGB(97,29,38):juce::Colour::fromRGB(62,26,31),
-    shape.getTopLeft(),dark,shape.getBottomLeft(),false);
-   g.setGradientFill(fill);g.fillRoundedRectangle(shape,5.f);
-   g.setColour(selected?gold:copper.withAlpha(.82f));
-   g.drawRoundedRectangle(shape,5.f,selected?1.5f:1.1f);
+       selected?juce::Colour::fromRGB(107,34,47):
+                juce::Colour::fromRGB(66,27,32),
+       button.getTopLeft(),juce::Colour::fromRGB(27,14,20),
+       button.getBottomLeft(),false);
+   g.setGradientFill(fill);g.fillRoundedRectangle(button,4.f);
+   g.setColour(selected?gold:copper.withAlpha(.92f));
+   g.drawRoundedRectangle(button,4.f,selected?1.6f:1.1f);
    if(selected){
-    g.setColour(gold.withAlpha(.9f));
-    g.fillEllipse(r.getX()+8.f,r.getCentreY()-2.5f,5.f,5.f);
+    g.setColour(gold);
+    g.fillEllipse(button.getX()+7.f,button.getCentreY()-2.5f,5.f,5.f);
    }
-   g.setColour(ivory);
-   g.setFont(font(r.getHeight()>=34.f?12.5f:11.5f,selected));
-   g.drawFittedText(label,r.toNearestInt().reduced(10,2),
-                    juce::Justification::centred,1);
+   label(title,rect.getX()+5.f,rect.getY()+2.f,
+         rect.getWidth()-10.f,rect.getHeight()-4.f,
+         rect.getHeight()>34.f?12.2f:11.8f,selected,ivory);
    break;
   }
+ }
+ // Clear, independent captions: fixed gaps before and after value readings.
+ const float largeName=b?833.f:784.f;
+ const float secondary=b?862.f:815.f;
+ label("INPUT DRIVE",102.f,largeName,268.f,25.f,23.f,true,ivory);
+ label("PUSH",w-370.f,largeName,268.f,25.f,23.f,true,ivory);
+ label(english?"CHAIN INPUT GAIN":"GAIN A L'ENTREE DE LA CHAINE",
+       100.f,secondary,272.f,15.f,11.5f,false,gold);
+ label(english?"ENERGY - DENSITY - IMPACT":"ENERGIE - DENSITE - IMPACT",
+       w-375.f,secondary,278.f,15.f,11.5f,false,gold);
+ if(b){
+  label("SUBTIL",w-349.f,893.f,80.f,15.f,10.f,false,gold);
+  label("AFFIRME",w-180.f,893.f,83.f,15.f,10.f,false,gold);
+  g.setColour(gold.withAlpha(.65f));
+  g.drawLine(w-262.f,902.f,w-186.f,902.f,1.3f);
+ }else{
+  label("SUBTIL",w-349.f,844.f,80.f,15.f,10.f,false,gold);
+  label("AFFIRME",w-180.f,844.f,83.f,15.f,10.f,false,gold);
+  g.setColour(gold.withAlpha(.65f));
+  g.drawLine(w-262.f,852.f,w-186.f,852.f,1.3f);
  }
 }
 
 void BoomAudioProcessorEditor::paintKnobs(juce::Graphics& g){
+ // No legacy bitmap layers, circular erasure decals or duplicated scales.
+ // All seven knobs, their legends and readouts use one native coordinate grid.
  const bool b=page==Page::browser;
- const float* xs=b?browserCX:chainCX;
+ const float* centres=b?browserCX:chainCX;
+ const float* ys=b?browserCY:chainCY;
  const float* radii=b?browserRadius:chainRadius;
+ const char* bands[]={"60 Hz","120 Hz","3 kHz","6 kHz","10 kHz"};
+ const char* captionsFR[]={"FONDATION","IMPACT","PRESENCE","DETAIL","AIR"};
+ const char* captionsEN[]={"FOUNDATION","IMPACT","PRESENCE","DETAIL","AIR"};
  for(int i=0;i<7;++i){
   const auto* parameter=processor.state().getParameter(keys[i]);
   if(parameter==nullptr)continue;
   const float normalized=juce::jlimit(0.f,1.f,
-                           parameter->convertTo0to1(read(keys[i])));
+                            parameter->convertTo0to1(read(keys[i])));
   const float angle=-2.35f+normalized*4.70f;
-  const float cx=xs[i],cy=(b?browserCY:chainCY)[i];
   const bool eq=i>=1&&i<=5;
-  const bool large=!eq;
-  const float radius=radii[i];
-  const float eraseRadius=eq?(b?68.f:79.f):(b?120.f:132.f);
-  const juce::Rectangle<float> mask(cx-eraseRadius,cy-eraseRadius,
-                                   2.f*eraseRadius,2.f*eraseRadius);
-  // OPAQUE, FULL-SIZE ERASURE: both small EQ knobs and the original large
-  // PUSH/INPUT DRIVE metal rings disappear before the new graphic is drawn.
-  // Limiting the mask to a circle also preserves the fixed console captions.
-  const auto bgCentre=b?juce::Colour::fromRGB(46,22,26):
-                        juce::Colour::fromRGB(52,20,25);
-  const auto bgOutside=b?juce::Colour::fromRGB(32,16,19):
-                         juce::Colour::fromRGB(43,17,21);
-  juce::ColourGradient clean(bgCentre,cx,cy,
-                              bgOutside,cx+eraseRadius,cy,true);
-  g.setGradientFill(clean);g.fillEllipse(mask);
-
-  // Recreate the fixed engraved scale entirely inside the cleaned circle,
-  // including the zero marker. No old photographed ticks or highlights remain.
-  const int tickCount=11;
-  const float tickStart=radius+(eq?8.f:10.f);
-  const float tickEnd=radius+(eq?16.f:20.f);
-  for(int k=0;k<tickCount;++k){
-   const float a=-2.35f+4.70f*float(k)/float(tickCount-1);
-   const float cs=std::sin(a),sn=std::cos(a);
-   g.setColour(k==5?ivory:gold.withAlpha(k%5==0?.9f:.46f));
-   const float from=tickStart;
-   const float to=tickEnd+(k%5==0?3.f:0.f);
-   g.drawLine(cx+cs*from,cy-sn*from,cx+cs*to,cy-sn*to,
-              k==5?2.4f:1.2f);
+  const float cx=centres[i],cy=ys[i],radius=radii[i];
+  // Ticks are completely separate from the knob: each scale is drawn ONCE.
+  const float tickInner=radius+(eq?4.f:6.f);
+  const float tickOuter=radius+(eq?10.f:17.f);
+  for(int k=0;k<=10;++k){
+   const float a=-2.35f+4.70f*float(k)/10.f;
+   const float sx=std::sin(a),sy=-std::cos(a);
+   const float outer=tickOuter+(k%5==0?3.f:0.f);
+   g.setColour(k==5?ivory:gold.withAlpha(k%5==0?.87f:.49f));
+   g.drawLine(cx+sx*tickInner,cy+sy*tickInner,
+              cx+sx*outer,cy+sy*outer,k==5?2.1f:1.1f);
   }
-  g.setColour(ivory);g.setFont(font(eq?(b?9.f:10.f):12.f,true));
+  // Three numeric references with generous gutters around the value field.
+  g.setFont(font(eq?10.5f:13.f,true));
   for(int k:{0,5,10}){
    const float a=-2.35f+4.70f*float(k)/10.f;
-   const float textRadius=radius+(eq?25.f:29.f);
-   const auto p=juce::Point<float>(cx+std::sin(a)*textRadius,
-                                  cy-std::cos(a)*textRadius);
-   juce::String label;
+   const float textR=radius+(eq?19.f:32.f);
+   const float px=cx+std::sin(a)*textR;
+   const float py=cy-std::cos(a)*textR;
+   juce::String caption;
    if(eq){
-    const bool edge=(i==1||i==5);
-    const int maximum=edge?8:10;
-    label=k==5?"0":juce::String(k==0?-maximum:maximum);
-    if(k==10)label="+"+label;
-   }else if(i==0)label=k==5?"0":(k==0?"-18":"+18");
-   else label=k==5?"50":(k==0?"0":"100");
-   g.drawFittedText(label,juce::roundToInt(p.x-21.f),
-                    juce::roundToInt(p.y-8.f),42,16,
-                    juce::Justification::centred,1);
+    const int span=(i==1||i==5)?8:10;
+    caption=k==5?"0":(k==0?"-"+juce::String(span):
+                                 "+"+juce::String(span));
+   }else if(i==0)caption=k==5?"0":(k==0?"-18":"+18");
+   else caption=k==5?"50":(k==0?"0":"100");
+   g.setColour(ivory);
+   g.drawFittedText(caption,
+    juce::roundToInt(px-21.f),juce::roundToInt(py-8.f),42,16,
+    juce::Justification::centred,1);
   }
   const juce::Rectangle<float> disk(cx-radius,cy-radius,2.f*radius,2.f*radius);
-  juce::ColourGradient brass(juce::Colour::fromRGB(110,61,48),
-                             disk.getTopLeft(),juce::Colour::fromRGB(29,19,22),
-                             disk.getBottomLeft(),false);
+  juce::ColourGradient brass(juce::Colour::fromRGB(108,55,45),
+                             disk.getTopLeft(),
+                             juce::Colour::fromRGB(25,15,19),
+                             disk.getBottomRight(),false);
   g.setGradientFill(brass);g.fillEllipse(disk);
-  g.setColour(juce::Colour::fromRGB(201,133,94));
-  g.drawEllipse(disk.reduced(.8f),large?3.f:2.3f);
-  g.setColour(juce::Colour::fromRGB(31,19,21));
-  g.drawEllipse(disk.reduced(6.f),large?3.8f:2.8f);
-  g.setColour(gold.withAlpha(.56f));
-  g.drawEllipse(disk.reduced(9.f),1.3f);
+  g.setColour(juce::Colour::fromRGB(199,131,90));
+  g.drawEllipse(disk.reduced(1.f),eq?2.2f:3.f);
+  g.setColour(juce::Colour::fromRGB(29,19,22));
+  g.drawEllipse(disk.reduced(eq?5.f:8.f),eq?2.6f:3.8f);
+  g.setColour(gold.withAlpha(.63f));
+  g.drawEllipse(disk.reduced(eq?8.f:12.f),1.f);
   const auto inner=disk.reduced(radius*.25f);
-  juce::ColourGradient core(juce::Colour::fromRGB(68,31,36),
-                            inner.getTopLeft(),juce::Colour::fromRGB(15,13,16),
+  juce::ColourGradient core(juce::Colour::fromRGB(70,33,37),
+                            inner.getTopLeft(),
+                            juce::Colour::fromRGB(16,13,18),
                             inner.getBottomRight(),false);
   g.setGradientFill(core);g.fillEllipse(inner);
-  g.setColour(juce::Colour::fromRGB(139,87,69).withAlpha(.72f));
+  g.setColour(juce::Colour::fromRGB(137,82,68).withAlpha(.7f));
   g.drawEllipse(inner.reduced(.5f),1.f);
-  const auto aPoint=[&](float length){
-   return juce::Point<float>(cx+std::sin(angle)*length,
-                              cy-std::cos(angle)*length);
+  // Exactly one position pointer (and its subtle dark shadow).
+  const auto position=[&](float len){
+   return juce::Point<float>(cx+std::sin(angle)*len,
+                              cy-std::cos(angle)*len);
   };
-  const auto start=aPoint(radius*.30f);
-  const auto tip=aPoint(radius*.72f);
-  g.setColour(juce::Colour::fromRGB(19,11,11).withAlpha(.68f));
-  g.drawLine(start.x+1.3f,start.y+1.3f,tip.x+1.3f,tip.y+1.3f,4.f);
+  const auto start=position(radius*.27f);
+  const auto tip=position(radius*.73f);
+  g.setColour(juce::Colour::fromRGB(21,12,14).withAlpha(.8f));
+  g.drawLine(start.x+1.f,start.y+1.f,tip.x+1.f,tip.y+1.f,4.f);
   g.setColour(ivory);
-  g.drawLine(start.x,start.y,tip.x,tip.y,juce::jmax(2.f,radius*.065f));
+  g.drawLine(start.x,start.y,tip.x,tip.y,eq?3.f:4.5f);
   const bool focus=focusedKnob==i&&hasKeyboardFocus(false);
   if(focus||hoveredKnob==i){
    g.setColour(focus?ivory.withAlpha(.94f):gold.withAlpha(.75f));
    g.drawEllipse(disk.expanded(2.f),focus?2.f:1.3f);
   }
- }
 
- // Completely replace the original still-image number and its shadows,
- // including trailing dB fragments. Reconstruct the local photographic
- // background from clean pixels at both sides of each strip, rather than
- // putting a conspicuous rectangular black sticker over the console.
- const auto& skin=b?browserSkin:chainSkin;
- for(int i=0;i<7;++i){
-  const bool large=i==0||i==6;
-  const float width=large?178.f:144.f;
-  const int x=juce::roundToInt(xs[i]-width*.5f);
-  const int y=juce::roundToInt(large?(b?795.f:750.f):(b?826.f:795.f));
-  const int height=large?39:35;
-  if(skin.isValid()){
-   for(int line=0;line<height;++line){
-    const int py=juce::jlimit(0,skin.getHeight()-1,y+line);
-    const auto left=skin.getPixelAt(juce::jlimit(0,skin.getWidth()-1,x-8),py);
-    const auto right=skin.getPixelAt(
-      juce::jlimit(0,skin.getWidth()-1,x+int(width)+8),py);
-    g.setGradientFill(juce::ColourGradient(left,float(x),float(py),
-                                          right,float(x+width),float(py),false));
-    g.fillRect(float(x),float(py),width,1.f);
-   }
-  }else{
-   g.setColour(juce::Colour::fromRGB(35,14,19));
-   g.fillRect(x,y,int(width),height);
+  const float valY=eq?(b?853.f:804.f):(b?799.f:745.f);
+  const float valueWidth=eq?122.f:200.f;
+  g.setColour(ivory);g.setFont(font(eq?15.f:21.f,true));
+  g.drawFittedText(juce::String(read(keys[i]),1)+(i==6?" %":" dB"),
+    juce::roundToInt(cx-valueWidth*.5f),juce::roundToInt(valY),
+    juce::roundToInt(valueWidth),eq?22:29,juce::Justification::centred,1);
+  if(eq){
+   const int band=i-1;
+   g.setColour(gold);g.setFont(font(16.f,true));
+   g.drawFittedText(bands[band],juce::roundToInt(cx-70.f),
+       b?878:830,140,21,juce::Justification::centred,1);
+   g.setColour(ivory.withAlpha(.78f));g.setFont(font(11.5f));
+   g.drawFittedText(english?captionsEN[band]:captionsFR[band],
+       juce::roundToInt(cx-75.f),b?902:852,150,18,
+       juce::Justification::centred,1);
   }
-  const auto text=juce::String(read(keys[i]),1)+(i==6?" %":" dB");
-  g.setColour(ivory);
-  g.setFont(font(large?20.f:15.f));
-  g.drawText(text,x,y+4,int(width),height-7,juce::Justification::centred);
  }
 }
+
 void BoomAudioProcessorEditor::paintCleanMeterFaces(juce::Graphics& g){
- // The original photograph has fixed needles, numbers and old erasure
- // smears baked into the glass. Draw a clean, matching analog scale INSIDE
- // the original brass frames. Only the interior is replaced, never the bezel.
+ // Entire stereo VU frames and faces are native, not old photographic layers.
+ // The two meter needles are drawn afterwards in paintMeter().
  const bool b=page==Page::browser;
- const float radius=b?112.f:123.f;
- const float labelRadius=radius+13.f;
- const float basesX[]={b?597.f:620.f,b?961.f:1037.f};
- const float baseY=b?699.f:632.f;
- const int top=b?570:498;
- const int panelHeight=b?116:125;
- const int panelWidth=b?286:312;
- const auto faceTop=juce::Colour::fromRGB(251,233,189);
- const auto faceBottom=juce::Colour::fromRGB(210,170,115);
- const int dbMarks[]={-20,-10,-7,-5,-3,-2,-1,0,1,2,3};
+ const float centres[]={b?597.f:620.f,b?961.f:1037.f};
+ const float cy=b?699.f:632.f;
+ const float frameTop=b?549.f:477.f;
+ const float frameWidth=b?337.f:354.f;
+ const float frameHeight=b?157.f:165.f;
+ const int values[]={-20,-10,-7,-5,-3,-2,-1,0,1,2,3};
  const float angles[]={-1.06f,-.83f,-.57f,-.35f,-.15f,
-                        .02f,.19f,.37f,.61f,.82f,1.04f};
+                       .02f,.19f,.37f,.61f,.82f,1.04f};
  for(int channel=0;channel<2;++channel){
-  const float cx=basesX[channel],cy=baseY;
-  const auto face=juce::Rectangle<float>(cx-panelWidth*.5f,float(top),
-                                         float(panelWidth),float(panelHeight));
-  juce::ColourGradient glass(faceTop,face.getTopLeft(),
-                             faceBottom,face.getBottomLeft(),false);
-  g.setGradientFill(glass);
-  g.fillRoundedRectangle(face,9.f);
-  g.setColour(juce::Colour::fromRGB(91,50,29).withAlpha(.80f));
-  g.drawRoundedRectangle(face.reduced(1.f),8.f,1.5f);
-  g.setColour(juce::Colour::fromRGB(92,51,39).withAlpha(.18f));
-  g.drawRoundedRectangle(face.reduced(4.f),7.f,1.f);
-  for(int j=0;j<11;++j){
-   const auto angle=angles[j];
-   const auto endpoint=[&](float r){
-    return juce::Point<float>(cx+std::sin(angle)*r,
-                              cy-std::cos(angle)*r);
+  const float cx=centres[channel];
+  const juce::Rectangle<float> frame(cx-frameWidth*.5f,frameTop,
+                                     frameWidth,frameHeight);
+  juce::ColourGradient surround(juce::Colour::fromRGB(123,81,48),
+                                frame.getTopLeft(),
+                                juce::Colour::fromRGB(35,21,19),
+                                frame.getBottomLeft(),false);
+  g.setGradientFill(surround);g.fillRoundedRectangle(frame,8.f);
+  g.setColour(gold.withAlpha(.61f));
+  g.drawRoundedRectangle(frame.reduced(1.f),7.f,1.4f);
+  const auto inset=frame.reduced(8.f,8.f);
+  g.setColour(juce::Colour::fromRGB(20,14,15));
+  g.fillRoundedRectangle(inset,6.f);
+  const auto face=inset.reduced(6.f,5.f);
+  juce::ColourGradient paper(juce::Colour::fromRGB(255,237,192),
+                             face.getTopLeft(),
+                             juce::Colour::fromRGB(209,171,113),
+                             face.getBottomLeft(),false);
+  g.setGradientFill(paper);g.fillRoundedRectangle(face,5.f);
+  g.setColour(juce::Colour::fromRGB(107,75,48));
+  g.drawRoundedRectangle(face.reduced(.5f),5.f,1.1f);
+  const float tickR=b?108.f:117.f;
+  const float labelR=b?119.f:128.f;
+  for(int k=0;k<11;++k){
+   const float a=angles[k];
+   const auto at=[&](float radius){
+    return juce::Point<float>(cx+std::sin(a)*radius,
+                              cy-std::cos(a)*radius);
    };
-   const auto a=endpoint(radius-((j==0||j==7||j==10)?14.f:9.f));
-   const auto z=endpoint(radius);
-   const bool positive=dbMarks[j]>0;
-   g.setColour(positive?juce::Colour::fromRGB(150,34,36):
-                        juce::Colour::fromRGB(59,42,34));
-   g.drawLine(a.x,a.y,z.x,z.y,(j==0||j==7)?2.f:1.3f);
-   const auto text=juce::String(dbMarks[j]>0?"+":"")+juce::String(dbMarks[j]);
-   const auto t=endpoint(labelRadius);
+   const auto from=at(tickR-(k==7?14.f:9.f));
+   const auto to=at(tickR);
+   const bool hot=values[k]>0;
+   g.setColour(hot?juce::Colour::fromRGB(158,42,41):
+                    juce::Colour::fromRGB(65,44,36));
+   g.drawLine(from.x,from.y,to.x,to.y,k==7?1.9f:1.2f);
+   const auto pos=at(labelR);
+   const auto label=juce::String(values[k]>0?"+":"")+juce::String(values[k]);
    g.setFont(font(b?9.f:10.f,true));
-   g.drawText(text,juce::roundToInt(t.x-19.f),juce::roundToInt(t.y-8.f),
-              38,16,juce::Justification::centred);
+   g.drawFittedText(label,juce::roundToInt(pos.x-18.f),
+         juce::roundToInt(pos.y-8.f),36,16,juce::Justification::centred,1);
   }
-  g.setColour(juce::Colour::fromRGB(57,41,33));
-  g.setFont(font(b?28.f:31.f,true));
-  g.drawText("VU",juce::roundToInt(cx-51.f),juce::roundToInt(cy-85.f),
-             102,43,juce::Justification::centred);
-  g.setColour(juce::Colour::fromRGB(108,72,48));
-  g.setFont(font(b?7.2f:8.f,true));
+  g.setColour(juce::Colour::fromRGB(57,43,34));
+  g.setFont(font(31.f,true));
+  g.drawText("VU",juce::roundToInt(cx-49.f),juce::roundToInt(cy-83.f),
+             98,40,juce::Justification::centred);
+  g.setColour(juce::Colour::fromRGB(109,75,51));
+  g.setFont(font(8.f,true));
   g.drawFittedText("LIBERTY MUSIC SOFTWARE",
-    juce::roundToInt(cx-105.f),juce::roundToInt(cy-45.f),210,14,
-    juce::Justification::centred,1);
-  g.setColour(juce::Colour::fromRGB(89,66,49));
+       juce::roundToInt(cx-108.f),juce::roundToInt(cy-42.f),
+       216,14,juce::Justification::centred,1);
   g.setFont(font(9.f,true));
-  g.drawText(channel==0?(english?"LEFT":"GAUCHE"):(english?"RIGHT":"DROITE"),
-    juce::roundToInt(face.getX()+13.f),juce::roundToInt(face.getBottom()-24.f),
-    80,16,juce::Justification::centredLeft);
+  g.drawText(channel==0?(english?"LEFT":"GAUCHE"):
+                       (english?"RIGHT":"DROITE"),
+       juce::roundToInt(face.getX()+11.f),
+       juce::roundToInt(face.getBottom()-19.f),75,13,
+       juce::Justification::centredLeft);
   g.drawText("300 ms",juce::roundToInt(face.getRight()-73.f),
-    juce::roundToInt(face.getBottom()-24.f),61,16,juce::Justification::centredRight);
+       juce::roundToInt(face.getBottom()-19.f),61,13,
+       juce::Justification::centredRight);
  }
 }
 

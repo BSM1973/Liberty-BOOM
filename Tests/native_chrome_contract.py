@@ -95,70 +95,74 @@ for w in (960,1100,1280,1592,1672):
     labelWidth=round(78*r)
     assert leftEnd < rightStart-labelWidth-6, (w,"toolbar overlap")
 
-print("BOOM chrome contract PASS: 17 native controls, real JPEG exclusions, "
-      "centred Style/Preset, ASCII-source UTF-8 Unicode, nonoverlapping layouts")
-
-# Source artwork button alignment: native toolbar and lower panel must use
-# the exact same click rectangles, never guessed left-justified widths.
+# One lower rendering surface, not four bitmap/vector layers.
+# The single full-panel paint eliminates photograph, mask, and live-control
+# intersections shown in the customer's 19 Nov screenshot.
+from re import findall
+mapping=(root/"Source/BOOMUIMap.h").read_text(encoding="utf-8")
 assert 'setToolbarArtworkWidth(artWidth())' in core
-assert 'const char* ids[]={"pageChain","pageMeters","pageSettings","pageHelp",' in chrome
-assert 'const auto& z=zones[j]' in chrome
 assert 'toolbarButtons[i].setBounds(' in chrome
-assert 'paintLowerButtons(g);' in core.replace(" ", "") or 'paintLowerButtons(g);' in paint
-assert 'g.fillRoundedRectangle(clean,5.f);' in paint
-assert 'void BoomAudioProcessorEditor::paintLowerButtons(' in paint
+assert 'paintLowerButtons(g);' in paint
+assert 'paintKnobs(g);' in paint
+assert 'paintCleanMeterFaces(g);' in paint
+assert 'paintMeter(g);' in paint
+assert 'One native surface replaces the ENTIRE lower photographed console' in paint
+assert 'g.setGradientFill(panel);g.fillRoundedRectangle(face,5.f);' in paint
+assert 'g.fillEllipse(mask)' not in paint
+assert 'const auto lowerRow=browser?' not in paint
+assert 'const auto row=browser?' not in paint
+assert 'const float eraseRadius=' not in paint
+assert 'const auto& skin=b?browserSkin:chainSkin;' not in paint
+assert 'const char* ids[]={"meterInput","bypass","mono","inputLink","trimMenu"}' in paint
+assert 'const auto& z=zones[n]' in paint
+assert 'g.drawEllipse(disk.expanded(2.f)' in paint
 assert 'juce::Justification::centred:juce::Justification::centredRight' in paint
+assert 'const float* centres=b?browserCX:chainCX;' in paint
+assert 'chainCX[]={236,505,669,834,1000,1167,1425}' in paint
+assert 'browserCY[]={676,797,797,797,797,797,676}' in paint
+assert 'chainRadius[]={86,46,46,46,46,46,86}' in paint
+assert 'browserRadius[]={80,41,41,41,41,41,80}' in paint
+assert 'const float valY=eq?(b?853.f:804.f):(b?799.f:745.f);' in paint
+for letter in ('"THE POWER BEHIND YOUR MASTER."',
+               '"INPUT DRIVE"', '"PUSH"', '"VU"', '"TRIMS"',
+               '"EGALISEUR MUSICAL DE MASTERING - 5 BANDES"'):
+    assert letter in paint
+assert 'void BoomAudioProcessorEditor::paintCleanMeterFaces(' in paint
+assert 'const auto face=inset.reduced(6.f,5.f);' in paint
+
 settings=(root/"Source/PluginEditorPanels.cpp").read_text(encoding="utf-8")
 assert 'g.drawText(s.title,s.x,s.y,215,19,juce::Justification::centred)' in settings
 assert 'modes[chosen],false,true' in settings
 
-# BOOM screenshot 2026-11-18: old JPEG meter needles and EQ figures
-# cannot remain visible behind the live controls.
-assert "void BoomAudioProcessorEditor::paintCleanMeterFaces(" in paint
-assert "paintCleanMeterFaces(g);" in paint
-assert "const float width=large?178.f:144.f;" in paint
-assert "skin.getPixelAt(" in paint
-assert "g.fillRoundedRectangle(clean,5.f);" in paint
-assert "g.drawRoundedRectangle(area.reduced(.5f),6.f,.8f)" not in paint
-assert '{458,428,242,41,Kind::toggle,"meterInput"}' in (
-    root/"Source/BOOMUIMap.h").read_text(encoding="utf-8")
+all_knobs=findall(r'\{(\d+),(\d+),(\d+),(\d+),Kind::knob,"(eq60|eq120|eq3k|eq6k|eq10k)"\}',mapping)
+assert len(all_knobs)==10
+for z,x in zip(all_knobs[:5],(505,669,834,1000,1167)):
+    zx,y,width,h,kind=z
+    assert abs(int(zx)+int(width)*.5-x)<1.6,(kind,zx,x)
+    assert 740<=int(y)+int(h)*.5<=747
+for z,x in zip(all_knobs[5:],(497,633,775,914,1052)):
+    zx,y,width,h,kind=z
+    assert abs(int(zx)+int(width)*.5-x)<2.,(kind,zx,x)
+    assert abs(int(y)+int(h)*.5-797.)<1.
+assert '{147,836,97,29,Kind::toggle,"inputLink"}' in mapping
+assert '{123,884,102,32,Kind::toggle,"inputLink"}' in mapping
 
-# Screenshot regression (18 Nov 2026): the first EQ face was near the
-# photograph's centre, but the fifth drifted 26 original-artwork pixels
-# left. Correct the five actual centres AND their interactive hit zones.
-eq_paint=(root/"Source/PluginEditorPaint.cpp").read_text(encoding="utf-8")
-eq_map=(root/"Source/BOOMUIMap.h").read_text(encoding="utf-8")
-assert 'chainCX[]={236,505,669,834,1000,1167,1425}' in eq_paint
-assert 'chainRadius[]={99,51,51,51,51,51,99}' in eq_paint
-assert 'browserRadius[]={87,47,47,47,47,47,87}' in eq_paint
-assert 'const float eraseRadius=eq?(b?68.f:79.f):(b?120.f:132.f);' in eq_paint
-assert 'g.fillEllipse(mask);' in eq_paint
-assert 'const bool eq=i>=1&&i<=5;' in eq_paint
-assert 'capture(chainSkin,chainFaces' not in eq_paint
-assert 'capture(browserSkin,browserFaces' not in eq_paint
-assert 'chainFaces,browserFaces' not in head
-from re import findall
-all_knobs=findall(r'\{(\d+),(\d+),(\d+),(\d+),Kind::knob,"(eq60|eq120|eq3k|eq6k|eq10k)"\}',eq_map)
-assert len(all_knobs)==10, "Five EQ hit zones on each console artwork"
-for zone in all_knobs[:5]:
-    pass
-chain_zones=all_knobs[:5]
-expected=(505,669,834,1000,1167)
-for zone,centre in zip(chain_zones,expected):
-    x,y,w,h,identifier=zone
-    assert abs((int(x)+int(w)/2)-centre)<=1.5,(identifier,centre,zone)
-    assert int(y)>=680 and int(h)>=120
-
-# Screenshot of 19 Nov: FOUR explicitly marked visual regressions.
-# (1) No shared background stripe through the slogan above the VU buttons.
-# (2) Full photographic EQ rims and scales erased before a single new knob.
-# (3) PUSH + INPUT DRIVE use the same full-size erasure path as EQ.
-# (4) LIEN G/D / TRIMS have no additional panel enclosing their native faces.
-assert 'const auto row=browser?' not in eq_paint
-assert 'const auto lowerRow=browser?' not in eq_paint
-assert 'const auto clean=r.expanded(4.f,4.f);' in eq_paint
-assert 'const bool large=!eq;' in eq_paint
-assert 'g.setGradientFill(clean);g.fillEllipse(mask);' in eq_paint
-assert 'const int tickCount=11;' in eq_paint
-assert 'const float eraseRadius=eq?(b?68.f:79.f):(b?120.f:132.f);' in eq_paint
-assert eq_paint.index('g.fillEllipse(mask);')<eq_paint.index('g.setGradientFill(brass);g.fillEllipse(disk);')
+# No clipping or overlap for both 13-inch layouts and their original
+# design coordinates. These are the regions of labels, scales and readouts.
+for name,cy,r,eq_title,value_y,frequency_y,subtitle_y,bottom in [
+    ("console",744,46,648,804,830,852,872),
+    ("browser",797,41,708,853,878,902,931),
+]:
+    top_number=cy-(r+19)-8
+    side_number_bottom=cy+.704*(r+19)+8
+    assert eq_title+18<top_number,(name,"EQ title vs zero graduation")
+    assert side_number_bottom<value_y,(name,"EQ graduation vs dB")
+    assert value_y+22<frequency_y,(name,"EQ dB vs frequency")
+    assert frequency_y+21<=subtitle_y,(name,"frequency vs category")
+    assert subtitle_y+18<bottom,(name,"category vs footer")
+for name,title_y,button_y in [("console",406,428),("browser",485,507)]:
+    assert title_y+19<button_y,(name,"slogan vs VU controls")
+for name,secondary_y,link_y in [("console",815,836),("browser",862,884)]:
+    assert secondary_y+15<link_y,(name,"input subtitle vs buttons")
+print("BOOM lower console contract PASS: one opaque native panel, unique "
+      "controls, seven clean knobs, nonoverlapping VU/labels on both layouts")

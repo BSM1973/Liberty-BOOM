@@ -84,8 +84,8 @@ inline constexpr Zone chain[]={
  {939,681,122,124,Kind::knob,"eq6k"},
  {1106,681,122,124,Kind::knob,"eq10k"},
  {1323,522,217,219,Kind::knob,"push"},
- {147,831,97,29,Kind::toggle,"inputLink"},
- {256,831,78,29,Kind::action,"trimMenu"}
+ {147,836,97,29,Kind::toggle,"inputLink"},
+ {256,836,78,29,Kind::action,"trimMenu"}
 };
 inline constexpr Zone browser[]={
  {32,28,354,42,Kind::menu,"styleMenu"},
@@ -134,14 +134,14 @@ inline constexpr Zone browser[]={
  {741,507,112,40,Kind::toggle,"bypass"},
  {906,507,220,40,Kind::toggle,"mono"},
  {120,575,196,198,Kind::knob,"inputDb"},
- {444,731,104,104,Kind::knob,"eq60"},
- {583,731,104,104,Kind::knob,"eq120"},
- {722,731,104,104,Kind::knob,"eq3k"},
- {860,731,104,104,Kind::knob,"eq6k"},
- {999,731,104,104,Kind::knob,"eq10k"},
+ {445,745,104,104,Kind::knob,"eq60"},
+ {581,745,104,104,Kind::knob,"eq120"},
+ {723,745,104,104,Kind::knob,"eq3k"},
+ {862,745,104,104,Kind::knob,"eq6k"},
+ {1000,745,104,104,Kind::knob,"eq10k"},
  {1230,575,203,198,Kind::knob,"push"},
- {123,861,102,32,Kind::toggle,"inputLink"},
- {228,861,77,32,Kind::action,"trimMenu"}
+ {123,884,102,32,Kind::toggle,"inputLink"},
+ {228,884,77,32,Kind::action,"trimMenu"}
 };
 template<std::size_t N> constexpr bool uniqueRects(const Zone (&zones)[N]) {
  for(std::size_t i=0;i<N;++i)
